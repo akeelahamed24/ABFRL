@@ -16,7 +16,7 @@ from sqlalchemy import desc, func
 from db import get_db, User, Product, Cart, Order, OrderItem, ChatSession, ChatMessage, AgentTask
 
 # OpenRouter configuration
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL_NAME = "mistralai/devstral-2512:free"
 
