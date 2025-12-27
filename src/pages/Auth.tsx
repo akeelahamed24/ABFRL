@@ -10,9 +10,8 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 const Auth = () => {
-  const { login, signup, isAuthenticated } = useAuth();
+  const { login, signup, isAuthenticated, isLoading } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -60,8 +59,6 @@ const Auth = () => {
     
     if (!validateForm()) return;
 
-    setIsLoading(true);
-
     try {
       if (isLogin) {
         const success = await login(formData.email, formData.password);
@@ -104,7 +101,7 @@ const Auth = () => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      // Loading state is managed by AuthContext
     }
   };
 

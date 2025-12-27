@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { CartDrawer } from './CartDrawer';
+import { AIChatWidget } from '../chat/AIChatWidget';
 
 interface LayoutProps {
   children: ReactNode;
@@ -16,6 +17,7 @@ export const Layout = ({ children }: LayoutProps) => {
       </main>
       <Footer />
       <CartDrawer />
+      <AIChatWidget />
     </div>
   );
 };

@@ -39,6 +39,8 @@ export interface CartItem {
   user_id: number;
   product_id: number;
   quantity: number;
+  size: string;
+  color: string;
   added_at: string;
   product?: Product;
 }
@@ -62,6 +64,7 @@ export interface Order {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  order_items: OrderItem[];
 }
 
 export interface OrderItem {

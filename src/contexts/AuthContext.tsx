@@ -1,71 +1,125 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { User } from '@/types';
-import { mockUsers } from '@/data/mockData';
+import { authAPI, userAPI } from '@/lib/api';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   signup: (email: string, password: string, firstName: string, lastName: string) => Promise<boolean>;
   logout: () => void;
+  refreshToken: () => Promise<void>;
+  getToken: () => string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = useCallback(async (email: string, _password: string): Promise<boolean> => {
-    // Mock login - find user by email
-    const foundUser = mockUsers.find((u) => u.email === email);
-    if (foundUser) {
-      setUser(foundUser);
-      return true;
+  const saveToken = (token: string) => {
+    localStorage.setItem('auth_token', token);
+  };
+
+  const getToken = () => {
+    return localStorage.getItem('auth_token');
+  };
+
+  const removeToken = () => {
+    localStorage.removeItem('auth_token');
+  };
+
+  const fetchUserProfile = useCallback(async (token: string) => {
+    try {
+      const userData = await userAPI.getProfile(token);
+      setUser(userData);
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error);
+      logout();
     }
-    return false;
+  }, []);
+
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      const response = await authAPI.login(email, password);
+      saveToken(response.access_token);
+      // For login, we need to fetch the user profile separately
+      const userData = await userAPI.getProfile(response.access_token);
+      setUser(userData);
+      return true;
+    } catch (error) {
+      console.error('Login failed:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const signup = useCallback(async (
-    email: string, 
-    _password: string, 
-    firstName: string, 
+    email: string,
+    password: string,
+    firstName: string,
     lastName: string
   ): Promise<boolean> => {
-    // Mock signup - create new user
-    const newUser: User = {
-      id: mockUsers.length + 1,
-      email,
-      password_hash: 'mock_hash',
-      first_name: firstName,
-      last_name: lastName,
-      phone: null,
-      address: null,
-      city: null,
-      state: null,
-      country: null,
-      postal_code: null,
-      loyalty_score: 0,
-      is_active: true,
-      is_admin: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setUser(newUser);
-    return true;
+    try {
+      setIsLoading(true);
+      const response = await authAPI.signup(email, password, firstName, lastName);
+      // For signup, we need to login to get the token
+      const loginResponse = await authAPI.login(email, password);
+      saveToken(loginResponse.access_token);
+      // Fetch the complete user profile
+      const userData = await userAPI.getProfile(loginResponse.access_token);
+      setUser(userData);
+      return true;
+    } catch (error) {
+      console.error('Signup failed:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
+    removeToken();
   }, []);
+
+  const refreshToken = useCallback(async () => {
+    try {
+      const token = getToken();
+      if (token) {
+        const response = await authAPI.refreshToken(token);
+        saveToken(response.access_token);
+      }
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      logout();
+    }
+  }, [logout]);
+
+  // Check for existing token on mount
+  useEffect(() => {
+    const token = getToken();
+    if (token) {
+      fetchUserProfile(token);
+    }
+    setIsLoading(false);
+  }, [fetchUserProfile]);
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: !!user,
+        isAuthenticated: !!user && !!getToken(),
+        isLoading,
         login,
         signup,
         logout,
+        refreshToken,
+        getToken,
       }}
     >
       {children}

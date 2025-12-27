@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
 const Wishlist = () => {
-  const { items, removeItem } = useWishlist();
+  const { items, removeItem, toggleItem, isInWishlist, isLoading } = useWishlist();
   const { addItem: addToCart } = useCart();
 
   const formatPrice = (price: number) => {
@@ -26,12 +26,37 @@ const Wishlist = () => {
     });
   };
 
-  const handleRemove = (productId: number, productName: string) => {
-    removeItem(productId);
-    toast({
-      title: "Removed from wishlist",
-      description: `${productName} has been removed from your wishlist.`,
-    });
+  const handleRemove = async (productId: number, productName: string) => {
+    try {
+      await removeItem(productId);
+      toast({
+        title: "Removed from wishlist",
+        description: `${productName} has been removed from your wishlist.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove item from wishlist. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleToggleWishlist = async (productId: number, productName: string) => {
+    try {
+      await toggleItem(productId);
+      const isWishlisted = items.some(item => item.id === productId);
+      toast({
+        title: isWishlisted ? "Added to wishlist" : "Removed from wishlist",
+        description: `${productName} has been ${isWishlisted ? 'added to' : 'removed from'} your wishlist.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update wishlist. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -86,7 +111,12 @@ const Wishlist = () => {
 
                 {/* Wishlist heart indicator */}
                 <div className="absolute top-3 right-3 h-9 w-9 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center">
-                  <Heart className="h-4 w-4 fill-brand-red text-brand-red" />
+                  <button
+                    onClick={() => handleToggleWishlist(product.id, product.product_name)}
+                    disabled={isLoading}
+                  >
+                    <Heart className={`h-4 w-4 ${isInWishlist(product.id) ? 'fill-brand-red text-brand-red' : 'text-muted-foreground'}`} />
+                  </button>
                 </div>
 
                 {/* Featured Badge */}

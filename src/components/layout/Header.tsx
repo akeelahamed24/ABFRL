@@ -195,7 +195,10 @@ export const Header = () => {
                     <Link to="/profile">My Profile</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to="/profile">My Orders</Link>
+                    <Link to="/orders">My Orders</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/cart">Shopping Cart</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/wishlist">Wishlist</Link>

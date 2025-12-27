@@ -475,7 +475,29 @@ export const mockOrders: Order[] = [
     tracking_number: "1Z999AA10123456784",
     notes: null,
     created_at: "2024-01-10",
-    updated_at: "2024-01-15"
+    updated_at: "2024-01-15",
+    order_items: [
+      {
+        id: 1,
+        order_id: 1,
+        product_id: 2,
+        product_name: "Luxe Velvet Cocktail Dress",
+        quantity: 1,
+        unit_price: 425.00,
+        total_price: 425.00,
+        created_at: "2024-01-10"
+      },
+      {
+        id: 2,
+        order_id: 1,
+        product_id: 1,
+        product_name: "Ethereal Silk Evening Gown",
+        quantity: 1,
+        unit_price: 899.00,
+        total_price: 899.00,
+        created_at: "2024-01-10"
+      }
+    ]
   },
   {
     id: 2,
@@ -495,7 +517,19 @@ export const mockOrders: Order[] = [
     tracking_number: "1Z999AA10123456785",
     notes: "Gift wrap requested",
     created_at: "2024-01-18",
-    updated_at: "2024-01-19"
+    updated_at: "2024-01-19",
+    order_items: [
+      {
+        id: 3,
+        order_id: 2,
+        product_id: 1,
+        product_name: "Ethereal Silk Evening Gown",
+        quantity: 1,
+        unit_price: 899.00,
+        total_price: 899.00,
+        created_at: "2024-01-18"
+      }
+    ]
   },
   {
     id: 3,
@@ -515,7 +549,19 @@ export const mockOrders: Order[] = [
     tracking_number: null,
     notes: null,
     created_at: "2024-01-20",
-    updated_at: "2024-01-20"
+    updated_at: "2024-01-20",
+    order_items: [
+      {
+        id: 4,
+        order_id: 3,
+        product_id: 9,
+        product_name: "Bespoke Wool Suit",
+        quantity: 1,
+        unit_price: 1450.00,
+        total_price: 1450.00,
+        created_at: "2024-01-20"
+      }
+    ]
   }
 ];
 

@@ -13,7 +13,6 @@ import {
   TrendingSection,
   InstagramFeed,
 } from '@/components/home';
-import { AIChatWidget } from '@/components/chat/AIChatWidget';
 
 const Index = () => {
   const featuredProducts = mockProducts.filter((p) => p.featured_dress);
@@ -104,9 +103,6 @@ const Index = () => {
 
       {/* Instagram Feed */}
       <InstagramFeed />
-
-      {/* AI Chat Widget */}
-      <AIChatWidget />
     </Layout>
   );
 };

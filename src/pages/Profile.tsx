@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { User, Mail, Phone, MapPin, Building, Globe, Hash, Award, ArrowLeft, Save, Edit2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
@@ -8,11 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
+import { userAPI } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 const Profile = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, getToken } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     first_name: user?.first_name || '',
@@ -25,11 +26,43 @@ const Profile = () => {
     country: user?.country || '',
     postal_code: user?.postal_code || '',
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Redirect if not authenticated
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
   }
+
+  useEffect(() => {
+    // Load user data from backend if not available in context
+    const loadUserProfile = async () => {
+      if (!user) {
+        try {
+          const token = getToken();
+          if (token) {
+            const userData = await userAPI.getProfile(token);
+            setFormData({
+              first_name: userData.first_name || '',
+              last_name: userData.last_name || '',
+              email: userData.email || '',
+              phone: userData.phone || '',
+              address: userData.address || '',
+              city: userData.city || '',
+              state: userData.state || '',
+              country: userData.country || '',
+              postal_code: userData.postal_code || '',
+            });
+          }
+        } catch (err) {
+          console.error('Failed to load user profile:', err);
+          setError('Failed to load profile data');
+        }
+      }
+    };
+
+    loadUserProfile();
+  }, [user, getToken]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({
@@ -38,13 +71,34 @@ const Profile = () => {
     }));
   };
 
-  const handleSave = () => {
-    // Mock save - in real app this would call an API
-    setIsEditing(false);
-    toast({
-      title: "Profile updated",
-      description: "Your profile information has been saved successfully.",
-    });
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const token = getToken();
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      await userAPI.updateProfile(token, formData);
+      setIsEditing(false);
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile information has been saved successfully.",
+      });
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+      setError('Failed to update profile. Please try again.');
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancel = () => {
