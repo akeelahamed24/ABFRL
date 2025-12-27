@@ -1,0 +1,279 @@
+# API Testing Commands for ABFRL Backend
+# Run these commands to test all API endpoints
+# Start the server first: uvicorn main:app --reload
+# Base URL: http://localhost:8000
+
+# ===========================================
+# 1. HEALTH CHECK
+# ===========================================
+curl -X GET "http://localhost:8000/health"
+
+# ===========================================
+# 2. AUTHENTICATION ENDPOINTS
+# ===========================================
+
+# Register a new user
+curl -X POST "http://localhost:8000/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "password123",
+    "first_name": "Test",
+    "last_name": "User",
+    "phone": "+1234567890",
+    "address": "123 Test St",
+    "city": "Test City",
+    "state": "Test State",
+    "country": "Test Country",
+    "postal_code": "12345"
+  }'
+
+# Login (save the token for authenticated requests)
+curl -X POST "http://localhost:8000/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "password123"
+  }'
+# Copy the access_token from the response for use in other requests
+
+# Get current user info (replace YOUR_TOKEN with actual token)
+curl -X GET "http://localhost:8000/me" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# ===========================================
+# 3. PRODUCT ENDPOINTS
+# ===========================================
+
+# Get all products (paginated)
+curl -X GET "http://localhost:8000/products?page=1&limit=10"
+
+# Get products by category
+curl -X GET "http://localhost:8000/products?category=dress"
+
+# Get featured products
+curl -X GET "http://localhost:8000/products?featured=true"
+
+# Search products
+curl -X GET "http://localhost:8000/products?search=silk"
+
+# Get specific product
+curl -X GET "http://localhost:8000/products/1"
+
+# Create product (Admin only - replace YOUR_ADMIN_TOKEN)
+curl -X POST "http://localhost:8000/products" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_name": "Test Dress",
+    "description": "A beautiful test dress",
+    "dress_category": "evening",
+    "price": 99.99,
+    "stock": 10,
+    "material": "silk",
+    "available_sizes": "S,M,L",
+    "colors": "red,blue",
+    "image_url": "https://example.com/image.jpg"
+  }'
+
+# Update product (Admin only)
+curl -X PUT "http://localhost:8000/products/1" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_name": "Updated Test Dress",
+    "price": 109.99
+  }'
+
+# Delete product (Admin only)
+curl -X DELETE "http://localhost:8000/products/1" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# ===========================================
+# 4. CART ENDPOINTS
+# ===========================================
+
+# Get cart items
+curl -X GET "http://localhost:8000/cart" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Add item to cart
+curl -X POST "http://localhost:8000/cart" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": 1,
+    "quantity": 2
+  }'
+
+# Update cart item
+curl -X PUT "http://localhost:8000/cart/1" \
+  -H "Content-Type: application/json" \
+  -d '{"quantity": 3}' \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Remove cart item
+curl -X DELETE "http://localhost:8000/cart/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Clear entire cart
+curl -X DELETE "http://localhost:8000/cart" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# ===========================================
+# 5. CHECKOUT ENDPOINTS
+# ===========================================
+
+# Get checkout preview
+curl -X GET "http://localhost:8000/cart/checkout-preview" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Complete checkout
+curl -X POST "http://localhost:8000/checkout" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "shipping_address": "123 Shipping St, City, State 12345",
+    "billing_address": "123 Billing St, City, State 12345",
+    "payment_method": "credit_card",
+    "card_details": {
+      "number": "4111111111111111",
+      "expiry": "12/25",
+      "cvv": "123"
+    }
+  }'
+
+# Get payment methods
+curl -X GET "http://localhost:8000/payment-methods"
+
+# ===========================================
+# 6. ORDER ENDPOINTS
+# ===========================================
+
+# Get user orders
+curl -X GET "http://localhost:8000/orders" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Get specific order
+curl -X GET "http://localhost:8000/orders/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Create order (alternative to checkout)
+curl -X POST "http://localhost:8000/orders" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "shipping_address": "123 Shipping St",
+    "billing_address": "123 Billing St",
+    "payment_method": "credit_card"
+  }'
+
+# Process payment for order
+curl -X POST "http://localhost:8000/orders/1/pay" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payment_method": "credit_card",
+    "card_details": {
+      "number": "4111111111111111",
+      "expiry": "12/25",
+      "cvv": "123"
+    }
+  }'
+
+# Get payment status
+curl -X GET "http://localhost:8000/orders/1/payment-status" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Cancel order
+curl -X PUT "http://localhost:8000/orders/1/cancel" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# ===========================================
+# 7. CHATBOT ENDPOINTS
+# ===========================================
+
+# Send chat message
+curl -X POST "http://localhost:8000/chat" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_id": "test-session-123",
+    "user_id": "user-123",
+    "message": "Hello, I need help finding a dress"
+  }'
+
+# Create agent task
+curl -X POST "http://localhost:8000/agent/task" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "task_id": "task-123",
+    "agent_type": "recommendation",
+    "session_id": "test-session-123",
+    "user_id": "user-123",
+    "parameters": {
+      "category": "evening"
+    }
+  }'
+
+# Get session history
+curl -X GET "http://localhost:8000/session/test-session-123"
+
+# Delete session
+curl -X DELETE "http://localhost:8000/session/test-session-123" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Get agents status
+curl -X GET "http://localhost:8000/agents/status"
+
+# ===========================================
+# 8. ADMIN ENDPOINTS (Admin token required)
+# ===========================================
+
+# Get all orders (Admin)
+curl -X GET "http://localhost:8000/admin/orders" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Update order status (Admin)
+curl -X PUT "http://localhost:8000/admin/orders/1" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "shipped",
+    "tracking_number": "TRACK123"
+  }'
+
+# Get dashboard stats (Admin)
+curl -X GET "http://localhost:8000/admin/dashboard" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# ===========================================
+# INSTRUCTIONS FOR TESTING
+# ===========================================
+
+# 1. Start the FastAPI server:
+#    cd backend
+#    uvicorn main:app --reload
+
+# 2. Run commands in order, replacing YOUR_TOKEN with actual JWT tokens
+
+# 3. For Postman:
+#    - Import these as a collection
+#    - Set base URL to http://localhost:8000
+#    - Add Authorization header for protected endpoints
+#    - Replace YOUR_TOKEN placeholders with actual tokens
+
+# 4. Test scenarios:
+#    - Register/Login → Get user info
+#    - Browse products → Add to cart → Checkout
+#    - Create order → Process payment
+#    - Use chatbot for recommendations
+#    - Admin: View orders and update status
+
+# 5. Environment variables needed:
+#    DATABASE_URL=postgresql://...
+#    SECRET_KEY=your-secret-key
+#    ALGORITHM=HS256
+#    ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# 6. Database setup:
+#    Run create_tables() in db.py or use migrations

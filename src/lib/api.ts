@@ -1,6 +1,6 @@
 import { User, Product, CartItem, Order, OrderItem } from '@/types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://abfrl-odbk.onrender.com';
 
 // Create axios-like fetch wrapper
 const apiClient = {
