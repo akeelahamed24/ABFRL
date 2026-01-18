@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Heart, Minus, Plus, Share2, Truck, RotateCcw, Shield, ChevronRight } from 'lucide-react';
+import { Heart, Minus, Plus, Truck, RotateCcw, Shield, ChevronRight } from 'lucide-react';
 import { Layout } from '@/components/layout';
 import { ProductGrid } from '@/components/product';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { productAPI } from '@/lib/api';
+import { mockProducts } from '@/data/mockData';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { toast } from '@/hooks/use-toast';
@@ -16,44 +16,34 @@ const ProductDetail = () => {
   const { addItem } = useCart();
   const { isInWishlist, toggleItem } = useWishlist();
   
-  const [product, setProduct] = useState<any>(null);
-  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [selectedImage, setSelectedImage] = useState(0);
 
-  useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        const productData = await productAPI.getById(Number(id));
-        setProduct(productData);
-        
-        // Related products functionality not implemented in backend yet
-        // Set to empty array for now
-        setRelatedProducts([]);
-      } catch (err) {
-        console.error('Failed to fetch product:', err);
-        setError('Failed to load product details. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchProduct();
+  const product = useMemo(() => {
+    return mockProducts.find(p => p.id === Number(id));
   }, [id]);
 
-  if (isLoading) {
-    return <Layout><div className="container py-16 text-center"><p className="text-muted-foreground">Loading product details...</p></div></Layout>;
-  }
+  const relatedProducts = useMemo(() => {
+    if (!product) return [];
+    return mockProducts
+      .filter(p => p.id !== product.id && p.dress_category === product.dress_category)
+      .slice(0, 4);
+  }, [product]);
 
-  if (error || !product) {
-    return <Layout><div className="container py-16 text-center"><h1 className="text-2xl text-destructive mb-4">{error || 'Product not found'}</h1><Link to="/products" className="text-gold hover:text-gold/80">Back to products</Link></div></Layout>;
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
+
+  if (!product) {
+    return (
+      <Layout>
+        <div className="container py-16 text-center">
+          <h1 className="text-2xl text-destructive mb-4">Product not found</h1>
+          <Link to="/products" className="text-gold hover:text-gold/80">Back to products</Link>
+        </div>
+      </Layout>
+    );
   }
 
   const sizes = product.available_sizes?.split(',') || [];
@@ -61,8 +51,14 @@ const ProductDetail = () => {
   const isWishlisted = isInWishlist(product.id);
 
   const handleAddToCart = () => {
-    if (!selectedSize) { toast({ title: "Please select a size", variant: "destructive" }); return; }
-    if (!selectedColor) { toast({ title: "Please select a color", variant: "destructive" }); return; }
+    if (!selectedSize) { 
+      toast({ title: "Please select a size", variant: "destructive" }); 
+      return; 
+    }
+    if (!selectedColor) { 
+      toast({ title: "Please select a color", variant: "destructive" }); 
+      return; 
+    }
     addItem(product, quantity, selectedSize, selectedColor);
     toast({ title: "Added to bag", description: `${product.product_name} has been added to your shopping bag.` });
   };

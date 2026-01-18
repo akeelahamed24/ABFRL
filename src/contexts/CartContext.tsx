@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Product } from '@/types';
-import { cartAPI } from '@/lib/api';
-import { useAuth } from './AuthContext';
 
 interface CartItemWithProduct {
   id: number;
@@ -13,10 +11,10 @@ interface CartItemWithProduct {
 
 interface CartContextType {
   items: CartItemWithProduct[];
-  addItem: (product: Product, quantity: number, size: string, color: string) => Promise<void>;
-  removeItem: (id: number) => Promise<void>;
-  updateQuantity: (id: number, quantity: number) => Promise<void>;
-  clearCart: () => Promise<void>;
+  addItem: (product: Product, quantity: number, size: string, color: string) => void;
+  removeItem: (id: number) => void;
+  updateQuantity: (id: number, quantity: number) => void;
+  clearCart: () => void;
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
@@ -27,160 +25,76 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+const STORAGE_KEY = 'cart_items';
+
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItemWithProduct[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { user, getToken } = useAuth();
 
-  const loadCart = useCallback(async () => {
-    if (!user) {
-      setItems([]);
+  // Load cart from localStorage on mount
+  useEffect(() => {
+    const savedCart = localStorage.getItem(STORAGE_KEY);
+    if (savedCart) {
+      try {
+        setItems(JSON.parse(savedCart));
+      } catch (error) {
+        console.error('Failed to parse saved cart:', error);
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+  }, []);
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }, [items]);
+
+  const addItem = useCallback((product: Product, quantity: number, size: string, color: string) => {
+    setItems(prev => {
+      const existingIndex = prev.findIndex(
+        (item) => item.product.id === product.id && item.size === size && item.color === color
+      );
+      
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: updated[existingIndex].quantity + quantity,
+        };
+        return updated;
+      }
+      
+      return [...prev, {
+        id: Date.now(),
+        product,
+        quantity,
+        size,
+        color
+      }];
+    });
+    
+    setIsOpen(true);
+  }, []);
+
+  const removeItem = useCallback((id: number) => {
+    setItems((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const updateQuantity = useCallback((id: number, quantity: number) => {
+    if (quantity < 1) {
+      setItems((prev) => prev.filter((item) => item.id !== id));
       return;
     }
 
-    try {
-      setIsLoading(true);
-      const token = getToken();
-      if (!token) return;
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, quantity } : item))
+    );
+  }, []);
 
-      const cartItems = await cartAPI.getCart(token);
-      
-      // Map cart items to expected format with product details
-      const itemsWithProducts = cartItems.map((cartItem: any) => {
-        try {
-          return {
-            id: cartItem.id,
-            product: {
-              id: cartItem.product_id,
-              product_name: cartItem.product_name,
-              price: cartItem.price,
-              dress_category: 'unknown', // Default since not provided
-              occasion: null,
-              stock: 0, // Default since not provided
-              material: null,
-              available_sizes: null,
-              colors: null,
-              image_url: cartItem.image_url,
-              featured_dress: false,
-              created_at: cartItem.added_at,
-              updated_at: cartItem.added_at,
-            },
-            quantity: cartItem.quantity,
-            size: 'M', // Default since backend doesn't store size/color
-            color: 'Default',
-          };
-        } catch (error) {
-          console.error('Failed to process cart item:', error);
-          return null;
-        }
-      });
-
-      setItems(itemsWithProducts.filter(item => item !== null) as CartItemWithProduct[]);
-    } catch (error) {
-      console.error('Failed to load cart:', error);
-      setItems([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, getToken]);
-
-  useEffect(() => {
-    loadCart();
-  }, [loadCart]);
-
-  const addItem = useCallback(async (product: Product, quantity: number, size: string, color: string) => {
-    try {
-      setIsLoading(true);
-      const token = getToken();
-      if (!token) return;
-
-      const cartItem = await cartAPI.addToCart(token, product.id, quantity, size, color);
-      
-      // Update local state
-      setItems(prev => {
-        const existingIndex = prev.findIndex(
-          (item) => item.product.id === product.id && item.size === size && item.color === color
-        );
-        
-        if (existingIndex >= 0) {
-          const updated = [...prev];
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            quantity: updated[existingIndex].quantity + quantity,
-            id: cartItem.id,
-          };
-          return updated;
-        }
-        
-        return [...prev, {
-          id: cartItem.id,
-          product,
-          quantity,
-          size,
-          color
-        }];
-      });
-      
-      setIsOpen(true);
-    } catch (error) {
-      console.error('Failed to add item to cart:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getToken]);
-
-  const removeItem = useCallback(async (id: number) => {
-    try {
-      setIsLoading(true);
-      const token = getToken();
-      if (!token) return;
-
-      await cartAPI.removeFromCart(token, id);
-      setItems((prev) => prev.filter((item) => item.id !== id));
-    } catch (error) {
-      console.error('Failed to remove item from cart:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getToken]);
-
-  const updateQuantity = useCallback(async (id: number, quantity: number) => {
-    try {
-      setIsLoading(true);
-      const token = getToken();
-      if (!token) return;
-
-      if (quantity < 1) {
-        await removeItem(id);
-        return;
-      }
-
-      await cartAPI.updateCartItem(token, id, quantity);
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, quantity } : item))
-      );
-    } catch (error) {
-      console.error('Failed to update cart item quantity:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getToken, removeItem]);
-
-  const clearCart = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const token = getToken();
-      if (!token) return;
-
-      await cartAPI.clearCart(token);
-      setItems([]);
-    } catch (error) {
-      console.error('Failed to clear cart:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getToken]);
+  const clearCart = useCallback(() => {
+    setItems([]);
+  }, []);
 
   const openCart = useCallback(() => setIsOpen(true), []);
   const closeCart = useCallback(() => setIsOpen(false), []);
