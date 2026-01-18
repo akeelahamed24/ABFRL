@@ -4,8 +4,8 @@ import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { useCart } from '@/contexts/CartContext';
-import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { Product } from '@/types';
 
 const Wishlist = () => {
   const { items, removeItem, toggleItem, isInWishlist, isLoading } = useWishlist();
@@ -18,45 +18,30 @@ const Wishlist = () => {
     }).format(price);
   };
 
-  const handleAddToCart = (product: typeof items[0]) => {
-    addToCart(product, 1, 'M', product.colors?.[0] || 'Default');
+  const handleAddToCart = (product: Product) => {
+    const colors = product.colors?.split(',') || ['Default'];
+    addToCart(product, 1, 'M', colors[0].trim());
     toast({
       title: "Added to bag",
       description: `${product.product_name} has been added to your shopping bag.`,
     });
   };
 
-  const handleRemove = async (productId: number, productName: string) => {
-    try {
-      await removeItem(productId);
-      toast({
-        title: "Removed from wishlist",
-        description: `${productName} has been removed from your wishlist.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to remove item from wishlist. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const handleRemove = (product: Product) => {
+    removeItem(product.id);
+    toast({
+      title: "Removed from wishlist",
+      description: `${product.product_name} has been removed from your wishlist.`,
+    });
   };
 
-  const handleToggleWishlist = async (productId: number, productName: string) => {
-    try {
-      await toggleItem(productId);
-      const isWishlisted = items.some(item => item.id === productId);
-      toast({
-        title: isWishlisted ? "Added to wishlist" : "Removed from wishlist",
-        description: `${productName} has been ${isWishlisted ? 'added to' : 'removed from'} your wishlist.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update wishlist. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const handleToggleWishlist = (product: Product) => {
+    toggleItem(product);
+    const wasInWishlist = isInWishlist(product.id);
+    toast({
+      title: wasInWishlist ? "Removed from wishlist" : "Added to wishlist",
+      description: `${product.product_name} has been ${wasInWishlist ? 'removed from' : 'added to'} your wishlist.`,
+    });
   };
 
   return (
@@ -112,7 +97,7 @@ const Wishlist = () => {
                 {/* Wishlist heart indicator */}
                 <div className="absolute top-3 right-3 h-9 w-9 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center">
                   <button
-                    onClick={() => handleToggleWishlist(product.id, product.product_name)}
+                    onClick={() => handleToggleWishlist(product)}
                     disabled={isLoading}
                   >
                     <Heart className={`h-4 w-4 ${isInWishlist(product.id) ? 'fill-brand-red text-brand-red' : 'text-muted-foreground'}`} />
@@ -152,7 +137,7 @@ const Wishlist = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleRemove(product.id, product.product_name)}
+                    onClick={() => handleRemove(product)}
                     className="border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground"
                   >
                     <Trash2 className="h-4 w-4" />
