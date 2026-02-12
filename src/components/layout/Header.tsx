@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, ShoppingBag, Heart, User, Menu, X, ChevronDown } from 'lucide-react';
-import abfrlLogo from '@/assets/abfrl-logo.png';
+// Logo removed - using text branding instead
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useCart } from '@/contexts/CartContext';
@@ -62,7 +62,7 @@ export const Header = () => {
             <SheetContent side="left" className="w-80 p-0">
               <nav className="flex flex-col p-6">
                 <Link to="/" className="mb-8 inline-block">
-                  <img src={abfrlLogo} alt="ABFRL" className="h-12 w-auto" />
+                  <div className="font-serif text-2xl font-bold tracking-wider">RETAIL</div>
                 </Link>
                 {categories.map((category) => (
                   <div key={category.id} className="py-2 border-b border-border">
@@ -90,7 +90,7 @@ export const Header = () => {
             to="/" 
             className="flex items-center gap-2 hover:opacity-90 transition-opacity"
           >
-            <img src={abfrlLogo} alt="ABFRL" className="h-10 md:h-12 w-auto" />
+            <div className="font-serif text-xl md:text-2xl font-bold tracking-wider">RETAIL</div>
           </Link>
 
           {/* Desktop Navigation */}

@@ -13,7 +13,7 @@ export const Footer = () => {
     if (email) {
             toast({
         title: "Welcome to our newsletter",
-        description: "Thank you for subscribing to ABFRL updates.",
+        description: "Thank you for subscribing to our newsletter.",
       });
       setEmail('');
     }
@@ -25,7 +25,7 @@ export const Footer = () => {
       <div className="border-b border-primary-foreground/10">
         <div className="container py-12">
           <div className="max-w-2xl mx-auto text-center">
-            <h3 className="font-serif text-2xl md:text-3xl mb-2">Join the ABFRL Circle</h3>
+            <h3 className="font-serif text-2xl md:text-3xl mb-2">Join Our Newsletter</h3>
             <p className="text-primary-foreground/70 mb-6 text-sm">
               Subscribe to receive exclusive offers, early access to new collections, and style inspiration.
             </p>
@@ -55,10 +55,10 @@ export const Footer = () => {
           {/* Brand */}
           <div>
             <Link to="/" className="font-serif text-2xl tracking-[0.2em] mb-4 inline-block">
-              ABFRL
+              RETAIL
             </Link>
             <p className="text-primary-foreground/70 text-sm leading-relaxed mb-4">
-              Aditya Birla Fashion and Retail Limited - India's largest pure-play fashion powerhouse. 
+              Your destination for premium fashion, quality apparel, and the latest trends. 
               Bringing style, quality, and innovation to every wardrobe.
             </p>
             <div className="flex gap-4">
@@ -143,7 +143,7 @@ export const Footer = () => {
 
           {/* About */}
           <div>
-            <h4 className="font-serif text-lg mb-4">About ABFRL</h4>
+            <h4 className="font-serif text-lg mb-4">About Us</h4>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link to="/about" className="text-primary-foreground/70 hover:text-gold transition-colors">
@@ -180,7 +180,7 @@ export const Footer = () => {
         <div className="container py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-primary-foreground/50 text-xs">
-              © {new Date().getFullYear()} Aditya Birla Fashion and Retail Limited. All rights reserved.
+              © {new Date().getFullYear()} Premium Fashion & Retail. All rights reserved.
             </p>
             <div className="flex gap-4 text-xs text-primary-foreground/50">
               <span>Visa</span>

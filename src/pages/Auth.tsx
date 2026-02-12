@@ -84,7 +84,7 @@ const Auth = () => {
         if (success) {
           toast({
             title: "Account created!",
-            description: "Welcome to ABFRL. Your account has been created successfully.",
+            description: "Welcome! Your account has been created successfully.",
           });
         } else {
           toast({
@@ -125,8 +125,8 @@ const Auth = () => {
             </h1>
             <p className="text-muted-foreground">
               {isLogin 
-                ? 'Sign in to access your ABFRL account' 
-                : 'Join ABFRL for exclusive offers and updates'}
+                ? 'Sign in to your account' 
+                : 'Join us for exclusive offers and updates'}
             </p>
           </div>
 

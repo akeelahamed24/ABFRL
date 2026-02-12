@@ -51,7 +51,7 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // ABFRL Brand colors
+        // Brand colors
         brand: {
           red: {
             DEFAULT: "hsl(var(--brand-red))",
