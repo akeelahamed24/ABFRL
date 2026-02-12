@@ -8,7 +8,6 @@ import {
   BigPromoBanner,
   FeaturesBar,
   TestimonialCarousel,
-  BrandCarousel,
   NewsletterSection,
   TrendingSection,
   InstagramFeed,
@@ -94,9 +93,6 @@ const Index = () => {
 
       {/* Testimonials */}
       <TestimonialCarousel />
-
-      {/* Brand Carousel */}
-      <BrandCarousel />
 
       {/* Newsletter */}
       <NewsletterSection />

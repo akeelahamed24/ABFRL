@@ -16,7 +16,7 @@ export const ProductGrid = ({ products, className, columns = 4 }: ProductGridPro
   };
 
   return (
-    <div className={cn('grid gap-6 md:gap-8', gridCols[columns], className)}>
+    <div className={cn('grid gap-3 md:gap-6 lg:gap-8', gridCols[columns], className)}>
       {products.map((product, index) => (
         <div 
           key={product.id} 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to add sample products to the ABFRL backend database
+Script to add sample products to the retail backend database
 Run this script to populate your database with test products
 """
 
@@ -27,7 +27,7 @@ def add_product(product_data):
         return False
 
 def main():
-    print("🚀 Adding sample products to ABFRL backend...")
+    print("🚀 Adding sample products to retail backend...")
     print(f"📡 Connecting to: {BASE_URL}")
     
     # Sample products data

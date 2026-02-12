@@ -21,11 +21,11 @@ const categoryItems = [
 
 export const CategoryCarousel = () => {
   return (
-    <section className="py-16 md:py-20 bg-secondary/30">
+    <section className="py-12 md:py-16 lg:py-20 bg-secondary/30">
       <div className="container">
-        <div className="text-center mb-10">
-          <h2 className="font-serif text-3xl md:text-4xl mb-2">Shop by Category</h2>
-          <p className="text-muted-foreground">Explore our curated collections</p>
+        <div className="text-center mb-6 md:mb-10">
+          <h2 className="font-serif text-2xl md:text-3xl lg:text-4xl mb-2">Shop by Category</h2>
+          <p className="text-muted-foreground text-sm md:text-base">Explore our curated collections</p>
         </div>
 
         <Carousel

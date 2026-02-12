@@ -330,9 +330,9 @@ const Products = () => {
                 {filteredProducts.length} products found
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto">
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="flex-1 md:flex-none md:w-[180px] text-sm">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
@@ -344,7 +344,7 @@ const Products = () => {
               </Select>
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="outline" size="icon" className="md:hidden">
+                  <Button variant="outline" size="icon" className="flex-shrink-0">
                     <Filter className="h-4 w-4" />
                   </Button>
                 </SheetTrigger>

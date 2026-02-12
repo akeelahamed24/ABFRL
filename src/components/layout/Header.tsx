@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ShoppingBag, Heart, User, Menu, X, ChevronDown } from 'lucide-react';
-import abfrlLogo from '@/assets/abfrl-logo.png';
+import { Search, ShoppingBag, Heart, User, X, ChevronDown } from 'lucide-react';
+// Logo removed - using text branding instead
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWishlist } from '@/contexts/WishlistContext';
@@ -41,8 +40,8 @@ export const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      {/* Top bar */}
+    <header className="sticky top-0 z-40 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      {/* Top bar - Desktop only */}
       <div className="hidden md:block bg-primary text-primary-foreground">
         <div className="container py-2 text-center text-xs tracking-widest uppercase">
           Complimentary shipping on orders over $500 | Free returns within 30 days
@@ -50,47 +49,14 @@ export const Header = () => {
       </div>
 
       {/* Main header */}
-      <div className="container">
-        <div className="flex h-16 items-center justify-between gap-4">
-          {/* Mobile menu */}
-          <Sheet>
-            <SheetTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-80 p-0">
-              <nav className="flex flex-col p-6">
-                <Link to="/" className="mb-8 inline-block">
-                  <img src={abfrlLogo} alt="ABFRL" className="h-12 w-auto" />
-                </Link>
-                {categories.map((category) => (
-                  <div key={category.id} className="py-2 border-b border-border">
-                    <div className="font-medium mb-2">{category.name}</div>
-                    {category.subcategories.map((sub) => (
-                      <Link
-                        key={sub.id}
-                        to={`/products?category=${sub.id}`}
-                        className="block py-1 text-sm text-muted-foreground hover:text-foreground"
-                      >
-                        {sub.name}
-                      </Link>
-                    ))}
-                  </div>
-                ))}
-                <Link to="/products" className="mt-4 text-sm font-medium">
-                  View All
-                </Link>
-              </nav>
-            </SheetContent>
-          </Sheet>
-
+      <div className="w-full px-4 md:px-0">
+        <div className="md:container flex h-14 md:h-16 items-center justify-between gap-4">
           {/* Logo */}
           <Link 
             to="/" 
             className="flex items-center gap-2 hover:opacity-90 transition-opacity"
           >
-            <img src={abfrlLogo} alt="ABFRL" className="h-10 md:h-12 w-auto" />
+            <div className="font-serif text-lg md:text-2xl font-bold tracking-wider">RETAIL</div>
           </Link>
 
           {/* Desktop Navigation */}
@@ -135,9 +101,9 @@ export const Header = () => {
             </NavigationMenuList>
           </NavigationMenu>
 
-          {/* Right section */}
-          <div className="flex items-center gap-2">
-            {/* Search */}
+          {/* Right section - Desktop Search */}
+          <div className="hidden md:flex items-center gap-2">
+            {/* Search - Desktop only */}
             {isSearchOpen ? (
               <form onSubmit={handleSearch} className="flex items-center gap-2">
                 <input
@@ -167,8 +133,8 @@ export const Header = () => {
               </Button>
             )}
 
-            {/* Wishlist */}
-            <Link to="/wishlist">
+            {/* Wishlist - Desktop only */}
+            <Link to="/wishlist" className="hidden md:block">
               <Button variant="ghost" size="icon" className="relative">
                 <Heart className="h-5 w-5" />
                 {wishlistItems.length > 0 && (
@@ -179,11 +145,11 @@ export const Header = () => {
               </Button>
             </Link>
 
-            {/* User */}
+            {/* User - Desktop only */}
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" className="hidden md:flex">
                     <User className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -214,18 +180,18 @@ export const Header = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Link to="/auth">
+              <Link to="/auth" className="hidden md:block">
                 <Button variant="ghost" size="icon">
                   <User className="h-5 w-5" />
                 </Button>
               </Link>
             )}
 
-            {/* Cart */}
+            {/* Cart - Desktop only */}
             <Button 
               variant="ghost" 
               size="icon" 
-              className="relative"
+              className="relative hidden md:flex"
               onClick={openCart}
             >
               <ShoppingBag className="h-5 w-5" />

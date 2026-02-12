@@ -1,6 +1,6 @@
 # E-Commerce Checkout Implementation
 
-This document describes the complete checkout procedure and payment gateway simulation implementation for the ABFRL e-commerce platform.
+This document describes the complete checkout procedure and payment gateway simulation implementation for the e-commerce platform.
 
 ## Overview
 
@@ -17,21 +17,25 @@ The checkout system provides a seamless shopping experience with the following f
 ### Backend Components
 
 #### 1. Payment Gateway Simulation (`backend/payment_gateway.py`)
+
 - **PaymentStatus**: Enum for payment states (pending, success, failed, refunded, cancelled)
 - **PaymentMethod**: Enum for supported payment methods (credit_card, debit_card, net_banking, upi, wallet)
 - **PaymentGateway**: Main class handling payment processing with realistic success/failure rates
 
 **Key Features:**
+
 - 85% success rate, 10% failure rate, 5% timeout rate
 - Card validation (16-digit number, valid expiry, 3-4 digit CVV)
 - Transaction ID generation
 - Refund processing with 95% success rate
 
 #### 2. Checkout Service (`backend/checkout_service.py`)
+
 - **CheckoutService**: Main service class handling the complete checkout flow
 - **CheckoutError**: Custom exception for checkout-related errors
 
 **Checkout Flow:**
+
 1. **Cart Validation**: Validate items, stock, and pricing
 2. **Total Calculation**: Apply discounts, taxes, and shipping
 3. **Order Creation**: Create order and order items, update stock
@@ -39,6 +43,7 @@ The checkout system provides a seamless shopping experience with the following f
 5. **Order Completion**: Update order status and user loyalty score
 
 **Key Features:**
+
 - Loyalty-based discounts (5% for 500+ points, 10% for 1000+ points)
 - Free shipping over ₹1000
 - 8.875% tax calculation
@@ -48,6 +53,7 @@ The checkout system provides a seamless shopping experience with the following f
 #### 3. API Endpoints (`backend/main.py`)
 
 **New Checkout Endpoints:**
+
 - `POST /checkout` - Complete checkout flow
 - `POST /orders/{order_id}/pay` - Process payment for existing order
 - `GET /orders/{order_id}/payment-status` - Get payment status
@@ -58,13 +64,16 @@ The checkout system provides a seamless shopping experience with the following f
 ### Frontend Components
 
 #### 1. Checkout Page (`src/pages/Checkout.tsx`)
+
 **Multi-step Checkout Flow:**
+
 1. **Address Step**: Shipping and billing address input
 2. **Payment Step**: Payment method selection and card details
 3. **Review Step**: Order summary and confirmation
 4. **Success/Error Steps**: Completion feedback
 
 **Features:**
+
 - Progress indicator showing current step
 - Form validation for addresses and payment details
 - Real-time total calculation
@@ -73,7 +82,9 @@ The checkout system provides a seamless shopping experience with the following f
 - Success and error handling
 
 #### 2. Cart Page (`src/pages/Cart.tsx`)
+
 **Full Cart View:**
+
 - Item listing with images, prices, and quantities
 - Quantity adjustment controls
 - Item removal functionality
@@ -82,6 +93,7 @@ The checkout system provides a seamless shopping experience with the following f
 - Clear cart functionality
 
 #### 3. Updated Components
+
 - **Header**: Added cart page link in user dropdown
 - **CartDrawer**: Already had checkout button
 - **API**: Added checkout-related endpoints
@@ -89,6 +101,7 @@ The checkout system provides a seamless shopping experience with the following f
 ## Payment Methods
 
 ### Supported Payment Methods
+
 1. **Credit Card**: Visa, MasterCard, American Express
 2. **Debit Card**: Visa, MasterCard, Rupay
 3. **UPI**: Unified Payments Interface
@@ -96,6 +109,7 @@ The checkout system provides a seamless shopping experience with the following f
 5. **Net Banking**: Direct bank transfer
 
 ### Card Validation Rules
+
 - **Card Number**: 16 digits
 - **Expiry Date**: MM/YYYY format, must be future date
 - **CVV**: 3-4 digits
@@ -104,11 +118,13 @@ The checkout system provides a seamless shopping experience with the following f
 ## Order Flow
 
 ### Order Status Lifecycle
+
 1. **processing** → **confirmed** → **shipped** → **delivered**
 2. **processing** → **payment_failed** (if payment fails)
 3. **processing/confirmed** → **cancelled** (if cancelled)
 
 ### Payment Status Lifecycle
+
 1. **pending** → **success** (payment successful)
 2. **pending** → **failed** (payment failed)
 3. **success** → **refunded** (if order cancelled)
@@ -116,6 +132,7 @@ The checkout system provides a seamless shopping experience with the following f
 ## Database Schema
 
 ### Order Table
+
 ```sql
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
@@ -140,6 +157,7 @@ CREATE TABLE orders (
 ```
 
 ### Order Items Table
+
 ```sql
 CREATE TABLE order_items (
     id SERIAL PRIMARY KEY,
@@ -156,6 +174,7 @@ CREATE TABLE order_items (
 ## Testing
 
 ### Test Script (`test_checkout.py`)
+
 Comprehensive test script that validates the entire checkout flow:
 
 1. **User Registration**: Creates test user
@@ -168,11 +187,13 @@ Comprehensive test script that validates the entire checkout flow:
 8. **Order Verification**: Confirms order creation
 
 **Usage:**
+
 ```bash
 python test_checkout.py
 ```
 
 **Prerequisites:**
+
 - Backend server running on localhost:8000
 - Database with sample products
 - Network connectivity
@@ -180,34 +201,38 @@ python test_checkout.py
 ## API Usage Examples
 
 ### 1. Checkout Preview
+
 ```javascript
 const preview = await checkoutAPI.getCheckoutPreview(token);
 // Returns: { has_items, item_count, valid_items, totals, user_loyalty }
 ```
 
 ### 2. Complete Checkout
+
 ```javascript
 const result = await checkoutAPI.checkout(token, {
-    shipping_address: "123 Main St, City, State, PIN",
-    billing_address: "123 Main St, City, State, PIN",
-    payment_method: "credit_card",
-    notes: "Special instructions",
-    card_details: {
-        card_number: "4532015112830366",
-        expiry_month: "12",
-        expiry_year: "2025",
-        cvv: "123"
-    }
+  shipping_address: "123 Main St, City, State, PIN",
+  billing_address: "123 Main St, City, State, PIN",
+  payment_method: "credit_card",
+  notes: "Special instructions",
+  card_details: {
+    card_number: "4532015112830366",
+    expiry_month: "12",
+    expiry_year: "2025",
+    cvv: "123",
+  },
 });
 ```
 
 ### 3. Get Payment Status
+
 ```javascript
 const status = await checkoutAPI.getPaymentStatus(token, orderId);
 // Returns: { order_id, order_number, payment_status, transaction_id, etc. }
 ```
 
 ### 4. Cancel Order
+
 ```javascript
 const result = await checkoutAPI.cancelOrder(token, orderId);
 // Returns: { success, order_id, refund_result }
@@ -216,6 +241,7 @@ const result = await checkoutAPI.cancelOrder(token, orderId);
 ## Error Handling
 
 ### Common Error Scenarios
+
 1. **Empty Cart**: "Cart is empty"
 2. **Insufficient Stock**: "Insufficient stock for product X"
 3. **Invalid Card**: "Invalid card details"
@@ -223,11 +249,12 @@ const result = await checkoutAPI.cancelOrder(token, orderId);
 5. **Authentication Required**: "Please login to proceed"
 
 ### Error Response Format
+
 ```json
 {
-    "success": false,
-    "error": "Error description",
-    "error_type": "checkout_error|system_error"
+  "success": false,
+  "error": "Error description",
+  "error_type": "checkout_error|system_error"
 }
 ```
 
@@ -266,6 +293,7 @@ const result = await checkoutAPI.cancelOrder(token, orderId);
 ## Support
 
 For issues related to checkout functionality:
+
 1. Check server logs for error details
 2. Verify database connectivity
 3. Ensure payment gateway is properly configured

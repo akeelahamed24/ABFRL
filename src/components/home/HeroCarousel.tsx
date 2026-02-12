@@ -54,7 +54,7 @@ export const HeroCarousel = () => {
 
   return (
     <section 
-      className="relative h-[85vh] min-h-[600px] overflow-hidden"
+      className="relative h-screen md:h-[85vh] min-h-[500px] md:min-h-[600px] overflow-hidden"
       onMouseEnter={() => setIsAutoPlaying(false)}
       onMouseLeave={() => setIsAutoPlaying(true)}
     >
@@ -73,11 +73,11 @@ export const HeroCarousel = () => {
           <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/40 to-background" />
           <div className="absolute inset-0 bg-gradient-to-r from-background/60 via-transparent to-transparent" />
           
-          <div className="relative z-10 container h-full flex items-center">
+          <div className="relative z-10 container h-full flex items-center px-4 md:px-0">
             <div className="max-w-2xl">
               <span 
                 className={cn(
-                  'inline-block text-brand-orange text-sm tracking-[0.3em] uppercase mb-4 transition-all duration-700 delay-200',
+                  'inline-block text-brand-orange text-xs md:text-sm tracking-[0.3em] uppercase mb-2 md:mb-4 transition-all duration-700 delay-200',
                   index === currentSlide ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
                 )}
               >
@@ -85,7 +85,7 @@ export const HeroCarousel = () => {
               </span>
               <h1
                 className={cn(
-                  'font-serif text-5xl md:text-7xl lg:text-8xl font-bold mb-6 transition-all duration-700 delay-300',
+                  'font-serif text-3xl md:text-5xl lg:text-7xl font-bold mb-3 md:mb-6 transition-all duration-700 delay-300',
                   index === currentSlide ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
                 )}
               >
@@ -93,7 +93,7 @@ export const HeroCarousel = () => {
               </h1>
               <p 
                 className={cn(
-                  'text-muted-foreground text-lg md:text-xl mb-8 transition-all duration-700 delay-400',
+                  'text-muted-foreground text-sm md:text-lg lg:text-xl mb-4 md:mb-8 transition-all duration-700 delay-400',
                   index === currentSlide ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
                 )}
               >
@@ -101,14 +101,14 @@ export const HeroCarousel = () => {
               </p>
               <div 
                 className={cn(
-                  'flex gap-4 transition-all duration-700 delay-500',
+                  'flex gap-2 md:gap-4 transition-all duration-700 delay-500 flex-wrap',
                   index === currentSlide ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
                 )}
               >
-                <Button asChild size="lg" className="bg-gradient-to-r from-brand-red via-brand-orange to-gold hover:from-brand-red-dark hover:via-brand-orange-dark hover:to-gold-dark text-white px-8 shadow-lg">
+                <Button asChild size="sm" className="bg-gradient-to-r from-brand-red via-brand-orange to-gold hover:from-brand-red-dark hover:via-brand-orange-dark hover:to-gold-dark text-white px-4 md:px-8 shadow-lg">
                   <Link to={slide.link}>{slide.cta}</Link>
                 </Button>
-                <Button asChild variant="outline" size="lg" className="border-foreground/20 hover:bg-foreground/5">
+                <Button asChild variant="outline" size="sm" className="border-foreground/20 hover:bg-foreground/5 px-4 md:px-8">
                   <Link to="/products">View All</Link>
                 </Button>
               </div>
