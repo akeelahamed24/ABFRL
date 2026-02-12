@@ -27,12 +27,12 @@ export const ProductCarousel = ({
   viewAllText = 'View All',
 }: ProductCarouselProps) => {
   return (
-    <section className="py-16 md:py-20">
+    <section className="py-12 md:py-16 lg:py-20">
       <div className="container">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6 md:mb-10">
           <div>
-            <h2 className="font-serif text-3xl md:text-4xl mb-2">{title}</h2>
-            {subtitle && <p className="text-muted-foreground">{subtitle}</p>}
+            <h2 className="font-serif text-2xl md:text-3xl lg:text-4xl mb-2">{title}</h2>
+            {subtitle && <p className="text-muted-foreground text-sm md:text-base">{subtitle}</p>}
           </div>
           <Button asChild variant="link" className="text-brand-orange p-0 hidden md:flex">
             <Link to={viewAllLink}>
