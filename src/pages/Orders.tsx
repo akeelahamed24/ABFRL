@@ -16,10 +16,10 @@ const Orders: React.FC = () => {
   const getOrderStatus = (order: Order) => order.order_status || order.status || 'pending';
   const getOrderDate = (order: Order) => order.created_at || '';
   const getOrderTotal = (order: Order) =>
-    order.total_amount ??
-    order.final_amount ??
-    order.items?.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0) ??
-    0;
+  order.final_amount ??
+  order.total_amount ??
+  order.items?.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0) ??
+  0;
 
   if (!isAuthenticated) {
     navigate('/auth');

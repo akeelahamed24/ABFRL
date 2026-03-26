@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ShoppingBag, Heart, User, X, ChevronDown } from 'lucide-react';
-// Logo removed - using text branding instead
+import { Search, ShoppingBag, Heart, User, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -53,17 +52,18 @@ export const Header = () => {
 
       {/* Main header */}
       <div className="w-full px-4 md:px-0">
-        <div className="md:container flex h-14 md:h-16 items-center justify-between gap-4">
+        <div className="md:container flex h-14 md:h-16 items-center justify-between gap-4 w-full">
+
           {/* Logo */}
-          <Link 
-            to="/" 
-            className="flex items-center gap-2 hover:opacity-90 transition-opacity"
+          <Link
+            to="/"
+            className="flex items-center gap-2 hover:opacity-90 transition-opacity flex-shrink-0"
           >
             <div className="font-serif text-lg md:text-2xl font-bold tracking-wider">RETAIL</div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <NavigationMenu className="hidden md:flex">
+          {/* Desktop Navigation - centered */}
+          <NavigationMenu className="hidden md:flex flex-1 justify-center">
             <NavigationMenuList>
               {categories.map((category) => (
                 <NavigationMenuItem key={category.id}>
@@ -96,8 +96,8 @@ export const Header = () => {
                 </NavigationMenuItem>
               ))}
               <NavigationMenuItem>
-                <Link 
-                  to="/products" 
+                <Link
+                  to="/products"
                   className="font-sans text-sm tracking-wider uppercase px-4 py-2 hover:text-brand-orange transition-colors"
                 >
                   All Products
@@ -106,40 +106,17 @@ export const Header = () => {
             </NavigationMenuList>
           </NavigationMenu>
 
-          {/* Right section - Desktop Search */}
-          <div className="hidden md:flex items-center gap-2">
-            {/* Search - Desktop only */}
-            {isSearchOpen ? (
-              <form onSubmit={handleSearch} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search..."
-                  className="w-32 md:w-48 h-9 px-3 text-sm bg-secondary rounded-sm border-0 focus:outline-none focus:ring-1 focus:ring-brand-orange"
-                  autoFocus
-                />
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => setIsSearchOpen(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </form>
-            ) : (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setIsSearchOpen(true)}
-              >
-                <Search className="h-5 w-5" />
-              </Button>
-            )}
+          {/* Mobile icons - visible only on mobile */}
+          <div className="flex md:hidden items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+            >
+              <Search className="h-5 w-5" />
+            </Button>
 
-            {/* Wishlist - Desktop only */}
-            <Link to="/wishlist" className="hidden md:block">
+            <Link to="/wishlist">
               <Button variant="ghost" size="icon" className="relative">
                 <Heart className="h-5 w-5" />
                 {wishlistItems.length > 0 && (
@@ -150,11 +127,10 @@ export const Header = () => {
               </Button>
             </Link>
 
-            {/* User - Desktop only */}
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="hidden md:flex">
+                  <Button variant="ghost" size="icon">
                     <User className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -185,18 +161,114 @@ export const Header = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Link to="/auth" className="hidden md:block">
+              <Link to="/auth">
                 <Button variant="ghost" size="icon">
                   <User className="h-5 w-5" />
                 </Button>
               </Link>
             )}
 
-            {/* Cart - Desktop only */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="relative hidden md:flex"
+            <Button variant="ghost" size="icon" className="relative" onClick={openCart}>
+              <ShoppingBag className="h-5 w-5" />
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-brand-red text-[10px] font-bold text-white flex items-center justify-center">
+                  {totalItems}
+                </span>
+              )}
+            </Button>
+          </div>
+
+          {/* Desktop right section */}
+          <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+            {/* Search */}
+            {isSearchOpen ? (
+              <form onSubmit={handleSearch} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search..."
+                  className="w-32 md:w-48 h-9 px-3 text-sm bg-secondary rounded-sm border-0 focus:outline-none focus:ring-1 focus:ring-brand-orange"
+                  autoFocus
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsSearchOpen(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </form>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsSearchOpen(true)}
+              >
+                <Search className="h-5 w-5" />
+              </Button>
+            )}
+
+            {/* Wishlist */}
+            <Link to="/wishlist">
+              <Button variant="ghost" size="icon" className="relative">
+                <Heart className="h-5 w-5" />
+                {wishlistItems.length > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-brand-red text-[10px] font-bold text-white flex items-center justify-center">
+                    {wishlistItems.length}
+                  </span>
+                )}
+              </Button>
+            </Link>
+
+            {/* User */}
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <User className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <div className="px-2 py-1.5 text-sm font-medium">
+                    {user?.first_name || 'Account'}
+                  </div>
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile">My Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/orders">My Orders</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/cart">Shopping Cart</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/wishlist">Wishlist</Link>
+                  </DropdownMenuItem>
+                  {user?.is_admin && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin">Admin Panel</Link>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={logout}>
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Link to="/auth">
+                <Button variant="ghost" size="icon">
+                  <User className="h-5 w-5" />
+                </Button>
+              </Link>
+            )}
+
+            {/* Cart */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative"
               onClick={openCart}
             >
               <ShoppingBag className="h-5 w-5" />
@@ -207,8 +279,33 @@ export const Header = () => {
               )}
             </Button>
           </div>
+
         </div>
       </div>
+
+      {/* Mobile search bar - expands below header */}
+      {isSearchOpen && (
+        <div className="md:hidden border-t border-border/50 px-4 py-2">
+          <form onSubmit={handleSearch} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search products..."
+              className="flex-1 h-9 px-3 text-sm bg-secondary rounded-sm border-0 focus:outline-none focus:ring-1 focus:ring-brand-orange"
+              autoFocus
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSearchOpen(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </form>
+        </div>
+      )}
     </header>
   );
 };

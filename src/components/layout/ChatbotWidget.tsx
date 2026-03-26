@@ -47,8 +47,8 @@ const initialMessage: ChatMessage = {
 
 /* ─── Markdown table sub-components ─── */
 const TableComponent = ({ children, ...props }: any) => (
-  <div className="overflow-x-auto my-3 rounded-lg border border-border">
-    <table className="min-w-full divide-y divide-border" {...props}>
+  <div className="overflow-x-auto my-3 rounded-lg border border-border max-w-full">
+    <table className="min-w-full divide-y divide-border table-auto" {...props}>
       {children}
     </table>
   </div>
@@ -278,7 +278,6 @@ export const ChatbotWidget = () => {
 
   /* ─────────────────────────── RENDER ─────────────────────────── */
   return (
-    /* Trigger button — sticks to bottom-right, clears mobile nav */
     <div className="fixed bottom-20 right-4 z-50 sm:bottom-6 sm:right-6">
       <Sheet open={open} onOpenChange={setOpen}>
 
@@ -295,18 +294,12 @@ export const ChatbotWidget = () => {
         </SheetTrigger>
 
         {/* ── Panel ── */}
-        {/*
-          Full-height on all screen sizes.
-          Width:
-            • mobile  → full width (w-screen) with no side margins so nothing clips
-            • tablet+ → wider panel so markdown tables and long prompts fit better
-        */}
         <SheetContent
           side="right"
           className={cn(
             'p-0 flex flex-col',
             'w-screen sm:w-[680px] sm:max-w-[92vw] lg:w-[820px] lg:max-w-[820px]',
-            'h-[100dvh]',           // dynamic viewport height — correct on mobile with soft keyboard
+            'h-[100dvh]',
             'overflow-hidden',
           )}
         >
@@ -421,20 +414,16 @@ export const ChatbotWidget = () => {
             </div>
 
             {/* ── Messages ── */}
-            {/*
-              flex-1 + min-h-0 is the critical combination:
-              flex-1 lets it grow, min-h-0 lets the inner ScrollArea actually scroll
-              instead of pushing the footer out of view.
-            */}
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 min-w-0">
               <ScrollArea className="h-full px-4 sm:px-6 py-4">
                 <div className="space-y-4 pb-2">
 
                   {messages.map((message) => (
-                    <div key={message.id} className="group">
+                    // FIX: added min-w-0 to prevent flex children from overflowing
+                    <div key={message.id} className="group min-w-0">
                       <div
                         className={cn(
-                          'flex gap-2 sm:gap-3',
+                          'flex gap-2 sm:gap-3 min-w-0',
                           message.role === 'user' ? 'justify-end' : 'justify-start'
                         )}
                       >
@@ -445,7 +434,10 @@ export const ChatbotWidget = () => {
                           </div>
                         )}
 
-                        {/* Bubble */}
+                        {/* Bubble
+                            FIX: added min-w-0 so the bubble can shrink below content size,
+                            and overflow-hidden so children (tables) are clipped to the bubble boundary.
+                        */}
                         <div
                           className={cn(
                             'relative min-w-0 overflow-hidden group/message rounded-2xl px-3.5 sm:px-4 py-3 text-sm leading-relaxed shadow-sm',
@@ -475,32 +467,32 @@ export const ChatbotWidget = () => {
 
                           {/* Content */}
                           {message.role === 'assistant' ? (
-                            <div className="prose prose-sm dark:prose-invert max-w-none
-                              break-words overflow-x-hidden
-                              [&_table]:w-full [&_table]:border-collapse [&_table]:my-3
-                              [&_table]:block [&_table]:overflow-x-auto
-                              [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold
-                              [&_th]:uppercase [&_th]:tracking-wider [&_th]:bg-muted/50
-                              [&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:border-t [&_td]:border-border
-                              [&_tr]:transition-colors [&_tr]:hover:bg-muted/30
-                              [&_p]:my-2 [&_p]:leading-relaxed
-                              [&_p]:break-words
-                              [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-4
-                              [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-4
-                              [&_li]:my-0.5
-                              [&_strong]:text-foreground [&_strong]:font-semibold
-                              [&_em]:text-muted-foreground
-                              [&_h1]:text-base [&_h1]:font-bold [&_h1]:my-3
-                              [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:my-2
-                              [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:my-1.5
-                              [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded
-                              [&_code]:text-xs [&_code]:font-mono [&_code]:break-all
-                              [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-lg
-                              [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:my-2
-                              [&_blockquote]:border-l-4 [&_blockquote]:border-primary
-                              [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:italic
-                              [&_hr]:my-3 [&_hr]:border-border
-                              pr-6"  /* extra right padding so copy button never overlaps text */
+                            <div
+                              className={cn(
+                                // FIX: w-full + min-w-0 ensures prose container never exceeds bubble width.
+                                // Removed [&_table]:block and [&_table]:overflow-x-auto — table scrolling is
+                                // now handled by the wrapper div inside TableComponent instead, which prevents
+                                // the table from blowing out the flex layout.
+                                'prose prose-sm dark:prose-invert w-full min-w-0',
+                                'overflow-hidden',
+                                '[&_p]:my-2 [&_p]:leading-relaxed [&_p]:break-words',
+                                '[&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-4',
+                                '[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-4',
+                                '[&_li]:my-0.5',
+                                '[&_strong]:text-foreground [&_strong]:font-semibold',
+                                '[&_em]:text-muted-foreground',
+                                '[&_h1]:text-base [&_h1]:font-bold [&_h1]:my-3',
+                                '[&_h2]:text-sm [&_h2]:font-semibold [&_h2]:my-2',
+                                '[&_h3]:text-sm [&_h3]:font-semibold [&_h3]:my-1.5',
+                                '[&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded',
+                                '[&_code]:text-xs [&_code]:font-mono [&_code]:break-all',
+                                '[&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-lg',
+                                '[&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:my-2',
+                                '[&_blockquote]:border-l-4 [&_blockquote]:border-primary',
+                                '[&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:italic',
+                                '[&_hr]:my-3 [&_hr]:border-border',
+                                'pr-6', // right padding so copy button never overlaps text
+                              )}
                             >
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
@@ -625,7 +617,6 @@ export const ChatbotWidget = () => {
               onSubmit={handleSubmit}
               className="shrink-0 border-t px-4 sm:px-6 py-3 sm:py-4 bg-background
                          pb-[env(safe-area-inset-bottom,0px)]"
-                         /* ↑ extra padding for iPhone home-bar */
             >
               <div className="flex items-end gap-2 sm:gap-3">
                 <Textarea
