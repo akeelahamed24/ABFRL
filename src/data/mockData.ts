@@ -420,6 +420,7 @@ export const mockUsers: User[] = [
   },
   {
     id: "2",
+    email: "admin@luxefashion.com",
     password_hash: "hashed_admin_password",
     first_name: "Admin",
     last_name: "User",
@@ -437,6 +438,7 @@ export const mockUsers: User[] = [
   },
   {
     id: "3",
+    email: "michael.chen@email.com",
     password_hash: "hashed_password_3",
     first_name: "Michael",
     last_name: "Chen",
