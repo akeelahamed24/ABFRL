@@ -5,52 +5,92 @@ import { Layout } from '@/components/layout';
 import { ProductGrid } from '@/components/product';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { mockProducts } from '@/data/mockData';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
+import { productAPI } from '@/services/api';
+import { Product } from '@/types';
 import { cn } from '@/lib/utils';
 
 const ProductDetail = () => {
   const { id } = useParams();
   const { addItem } = useCart();
   const { isInWishlist, toggleItem } = useWishlist();
+  const { toast } = useToast();
   
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const product = useMemo(() => {
-    return mockProducts.find(p => p.id === Number(id));
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        if (!id) {
+          setError('Product ID not found');
+          return;
+        }
+
+        // Fetch the product
+        const productData = await productAPI.getProduct(id);
+        setProduct(productData);
+
+        // Fetch related products from same category
+        if (productData.dress_category) {
+          const allProducts = await productAPI.getProducts();
+          const related = allProducts
+            .filter(p => p.id !== productData.id && p.dress_category === productData.dress_category)
+            .slice(0, 4);
+          setRelatedProducts(related);
+        }
+      } catch (err) {
+        console.error('Failed to fetch product:', err);
+        setError('Failed to load product details');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProduct();
   }, [id]);
-
-  const relatedProducts = useMemo(() => {
-    if (!product) return [];
-    return mockProducts
-      .filter(p => p.id !== product.id && p.dress_category === product.dress_category)
-      .slice(0, 4);
-  }, [product]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
 
-  if (!product) {
+  if (loading) {
     return (
       <Layout>
         <div className="container py-16 text-center">
-          <h1 className="text-2xl text-destructive mb-4">Product not found</h1>
-          <Link to="/products" className="text-gold hover:text-gold/80">Back to products</Link>
+          <div className="h-16 w-16 mx-auto mb-4 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <h1 className="text-xl font-semibold mb-2">Loading product...</h1>
         </div>
       </Layout>
     );
   }
 
-  const sizes = product.available_sizes?.split(',') || [];
-  const colors = product.colors?.split(',') || [];
+  if (error || !product) {
+    return (
+      <Layout>
+        <div className="container py-16 text-center">
+          <h1 className="text-2xl text-destructive mb-4">{error || 'Product not found'}</h1>
+          <Link to="/products" className="text-primary hover:text-primary/80">Back to products</Link>
+        </div>
+      </Layout>
+    );
+  }
+
+  const sizes = product.available_sizes?.split(',').map(s => s.trim()).filter(s => s) || [];
+  const colors = product.colors?.split(',').map(c => c.trim()).filter(c => c) || [];
   const isWishlisted = isInWishlist(product.id);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!selectedSize) { 
       toast({ title: "Please select a size", variant: "destructive" }); 
       return; 
@@ -59,8 +99,12 @@ const ProductDetail = () => {
       toast({ title: "Please select a color", variant: "destructive" }); 
       return; 
     }
-    addItem(product, quantity, selectedSize, selectedColor);
-    toast({ title: "Added to bag", description: `${product.product_name} has been added to your shopping bag.` });
+    try {
+      await addItem(product, quantity, selectedSize, selectedColor);
+      toast({ title: "Added to bag", description: `${product.product_name} has been added to your shopping bag.` });
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to add item to cart", variant: "destructive" });
+    }
   };
 
   const formatPrice = (price: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
@@ -103,8 +147,8 @@ const ProductDetail = () => {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {colors.map((color) => (
-                    <button key={color} onClick={() => setSelectedColor(color.trim())} className={cn('px-4 py-2 text-sm border rounded-sm transition-colors', selectedColor === color.trim() ? 'border-gold bg-gold/10' : 'border-border hover:border-foreground')}>
-                      {color.trim()}
+                    <button key={color} onClick={() => setSelectedColor(color)} className={cn('px-4 py-2 text-sm border rounded-sm transition-colors', selectedColor === color ? 'border-gold bg-gold/10' : 'border-border hover:border-foreground')}>
+                      {color}
                     </button>
                   ))}
                 </div>
@@ -120,8 +164,8 @@ const ProductDetail = () => {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {sizes.map((size) => (
-                    <button key={size} onClick={() => setSelectedSize(size.trim())} className={cn('w-12 h-12 text-sm border rounded-sm transition-colors', selectedSize === size.trim() ? 'border-gold bg-gold/10' : 'border-border hover:border-foreground')}>
-                      {size.trim()}
+                    <button key={size} onClick={() => setSelectedSize(size)} className={cn('w-12 h-12 text-sm border rounded-sm transition-colors', selectedColor === size ? 'border-gold bg-gold/10' : 'border-border hover:border-foreground')}>
+                      {size}
                     </button>
                   ))}
                 </div>
@@ -153,8 +197,8 @@ const ProductDetail = () => {
               <TabsList className="w-full"><TabsTrigger value="details" className="flex-1">Details</TabsTrigger><TabsTrigger value="care" className="flex-1">Care</TabsTrigger></TabsList>
               <TabsContent value="details" className="text-sm text-muted-foreground space-y-2 mt-4">
                 <p><strong>Material:</strong> {product.material}</p>
-                <p><strong>Category:</strong> {product.dress_category.replace('-', ' ')}</p>
-                {product.stock <= 5 && <p className="text-destructive">Only {product.stock} left in stock!</p>}
+                <p><strong>Category:</strong> {product.dress_category?.replace('-', ' ')}</p>
+                {product.stock && product.stock <= 5 && <p className="text-destructive">Only {product.stock} left in stock!</p>}
               </TabsContent>
               <TabsContent value="care" className="text-sm text-muted-foreground mt-4">
                 <p>Dry clean only. Store in a cool, dry place away from direct sunlight.</p>

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Product } from '@/types';
+import { cartAPI } from '@/services/api';
 
 interface CartItemWithProduct {
   id: number;
@@ -11,9 +12,9 @@ interface CartItemWithProduct {
 
 interface CartContextType {
   items: CartItemWithProduct[];
-  addItem: (product: Product, quantity: number, size: string, color: string) => void;
-  removeItem: (id: number) => void;
-  updateQuantity: (id: number, quantity: number) => void;
+  addItem: (product: Product, quantity: number, size: string, color: string) => Promise<void>;
+  removeItem: (id: number) => Promise<void>;
+  updateQuantity: (id: number, quantity: number) => Promise<void>;
   clearCart: () => void;
   isOpen: boolean;
   openCart: () => void;
@@ -31,8 +32,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [items, setItems] = useState<CartItemWithProduct[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  // Load cart from localStorage on mount
+  // Get user ID from localStorage (set by AuthContext)
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        setUserId(user._id || user.id);
+      } catch (error) {
+        console.error('Failed to parse user:', error);
+      }
+    }
+  }, []);
+
+  // Load cart from localStorage on mount (for offline mode)
   useEffect(() => {
     const savedCart = localStorage.getItem(STORAGE_KEY);
     if (savedCart) {
@@ -50,47 +65,94 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items]);
 
-  const addItem = useCallback((product: Product, quantity: number, size: string, color: string) => {
-    setItems(prev => {
-      const existingIndex = prev.findIndex(
-        (item) => item.product.id === product.id && item.size === size && item.color === color
-      );
+  const addItem = useCallback(async (product: Product, quantity: number, size: string, color: string) => {
+    try {
+      setIsLoading(true);
       
-      if (existingIndex >= 0) {
-        const updated = [...prev];
-        updated[existingIndex] = {
-          ...updated[existingIndex],
-          quantity: updated[existingIndex].quantity + quantity,
-        };
-        return updated;
+      // Optimistic update
+      setItems(prev => {
+        const existingIndex = prev.findIndex(
+          (item) => item.product.id === product.id && item.size === size && item.color === color
+        );
+        
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            quantity: updated[existingIndex].quantity + quantity,
+          };
+          return updated;
+        }
+        
+        return [...prev, {
+          id: Date.now(),
+          product,
+          quantity,
+          size,
+          color
+        }];
+      });
+      
+      setIsOpen(true);
+
+      // Call API if user is logged in
+      if (userId) {
+        await cartAPI.addToCart(userId, product.id?.toString() || '', quantity);
       }
-      
-      return [...prev, {
-        id: Date.now(),
-        product,
-        quantity,
-        size,
-        color
-      }];
-    });
-    
-    setIsOpen(true);
-  }, []);
-
-  const removeItem = useCallback((id: number) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
-  }, []);
-
-  const updateQuantity = useCallback((id: number, quantity: number) => {
-    if (quantity < 1) {
-      setItems((prev) => prev.filter((item) => item.id !== id));
-      return;
+    } catch (error) {
+      console.error('Failed to add item to cart:', error);
+      // Keep the optimistic update even if API fails (offline mode)
+    } finally {
+      setIsLoading(false);
     }
+  }, [userId]);
 
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, quantity } : item))
-    );
-  }, []);
+  const removeItem = useCallback(async (id: number) => {
+    try {
+      setIsLoading(true);
+      
+      // Optimistic update
+      const itemToRemove = items.find(item => item.id === id);
+      setItems((prev) => prev.filter((item) => item.id !== id));
+
+      // Call API if user is logged in
+      if (userId && itemToRemove) {
+        await cartAPI.removeFromCart(userId, itemToRemove.product.id?.toString() || '');
+      }
+    } catch (error) {
+      console.error('Failed to remove item from cart:', error);
+      // Keep the optimistic update
+    } finally {
+      setIsLoading(false);
+    }
+  }, [items, userId]);
+
+  const updateQuantity = useCallback(async (id: number, quantity: number) => {
+    try {
+      setIsLoading(true);
+      
+      if (quantity < 1) {
+        await removeItem(id);
+        return;
+      }
+
+      // Optimistic update
+      const itemToUpdate = items.find(item => item.id === id);
+      setItems((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, quantity } : item))
+      );
+
+      // Call API if user is logged in
+      if (userId && itemToUpdate) {
+        await cartAPI.addToCart(userId, itemToUpdate.product.id?.toString() || '', quantity - itemToUpdate.quantity);
+      }
+    } catch (error) {
+      console.error('Failed to update cart quantity:', error);
+      // Keep the optimistic update
+    } finally {
+      setIsLoading(false);
+    }
+  }, [items, userId, removeItem]);
 
   const clearCart = useCallback(() => {
     setItems([]);

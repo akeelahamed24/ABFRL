@@ -1,5 +1,6 @@
 import { Layout } from '@/components/layout';
-import { mockProducts } from '@/data/mockData';
+import { useMemo } from 'react';
+import { useProducts } from '@/hooks/useApi';
 import {
   HeroCarousel,
   ProductCarousel,
@@ -14,13 +15,27 @@ import {
 } from '@/components/home';
 
 const Index = () => {
-  const featuredProducts = mockProducts.filter((p) => p.featured_dress);
-  const newArrivals = [...mockProducts].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  ).slice(0, 8);
-  const womenProducts = mockProducts.filter((p) => p.dress_category.startsWith('women')).slice(0, 8);
-  const menProducts = mockProducts.filter((p) => p.dress_category.startsWith('men')).slice(0, 8);
-  const bestSellers = mockProducts.filter((p) => p.stock < 30).slice(0, 8);
+  // Fetch products from database
+  const { products } = useProducts();
+
+  // Filter and organize products for different sections
+  const sectionProducts = useMemo(() => {
+    const featured = products.filter((p) => p.featured_dress);
+    const newest = products.length > 0 
+      ? [...products].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 8)
+      : [];
+    const women = products.filter((p) => p.dress_category?.startsWith('women')).slice(0, 8);
+    const men = products.filter((p) => p.dress_category?.startsWith('men')).slice(0, 8);
+    const sellers = products.filter((p) => p.stock && p.stock < 30).slice(0, 8);
+
+    return {
+      featured,
+      newest,
+      women,
+      men,
+      sellers
+    };
+  }, [products]);
 
   return (
     <Layout>
@@ -37,7 +52,7 @@ const Index = () => {
       <ProductCarousel
         title="New Arrivals"
         subtitle="Fresh from our latest collection"
-        products={newArrivals}
+        products={sectionProducts.newest}
         viewAllLink="/products?sort=newest"
         viewAllText="Shop New"
       />
@@ -50,7 +65,7 @@ const Index = () => {
         <ProductCarousel
           title="Featured Collection"
           subtitle="Handpicked pieces for the discerning taste"
-          products={featuredProducts}
+          products={sectionProducts.featured}
           viewAllLink="/products?featured=true"
           viewAllText="View All Featured"
         />
@@ -63,7 +78,7 @@ const Index = () => {
       <ProductCarousel
         title="Best Sellers"
         subtitle="Our most-loved pieces"
-        products={bestSellers}
+        products={sectionProducts.sellers}
         viewAllLink="/products?sort=popular"
         viewAllText="Shop Best Sellers"
       />
@@ -75,7 +90,7 @@ const Index = () => {
       <ProductCarousel
         title="Women's Edit"
         subtitle="Elegant designs for every occasion"
-        products={womenProducts}
+        products={sectionProducts.women}
         viewAllLink="/products?category=women"
         viewAllText="Shop Women"
       />
@@ -85,7 +100,7 @@ const Index = () => {
         <ProductCarousel
           title="Men's Essentials"
           subtitle="Timeless pieces, modern fit"
-          products={menProducts}
+          products={sectionProducts.men}
           viewAllLink="/products?category=men"
           viewAllText="Shop Men"
         />
