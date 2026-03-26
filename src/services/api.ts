@@ -29,6 +29,18 @@ export interface SalesChatResponse {
   action_data?: Record<string, any> | null;
 }
 
+export type VoiceAgentStage = 'intro' | 'qualification' | 'closing';
+
+export interface VoiceAgentRequest {
+  message: string;
+  stage: VoiceAgentStage;
+}
+
+export interface VoiceAgentResponse {
+  reply: string;
+  next_stage: VoiceAgentStage;
+}
+
 export interface CatalogMetaResponse {
   categories: CatalogCategoryMeta[];
   occasions: CatalogOccasionMeta[];
@@ -409,6 +421,22 @@ export const salesAPI = {
 
     if (!response.ok) {
       throw new Error('Failed to reach sales assistant');
+    }
+
+    return response.json();
+  },
+};
+
+export const voiceAgentAPI = {
+  async sendMessage(payload: VoiceAgentRequest): Promise<VoiceAgentResponse> {
+    const response = await fetch(`${API_BASE}/voice-agent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to reach voice agent');
     }
 
     return response.json();
