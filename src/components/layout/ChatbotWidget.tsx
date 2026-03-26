@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import {
   Bot, History, MessageCircle, Send, Sparkles,
-  User as UserIcon, X, ChevronDown, ChevronUp, Copy, Check
+  User as UserIcon, ChevronDown, ChevronUp, Copy, Check
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { chatAPI, ChatSessionSummary, salesAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -85,8 +85,11 @@ export const ChatbotWidget = () => {
   const [recentSessions, setRecentSessions] = useState<ChatSessionSummary[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [showRecentThreads, setShowRecentThreads] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const historyRequestRef = useRef(0);
 
   const sessionStorageKey = useMemo(
     () =>
@@ -112,12 +115,39 @@ export const ChatbotWidget = () => {
     }
   }, [sessionId, sessionStorageKey]);
 
+  const loadRecentSessions = async () => {
+    if (!isAuthenticated || !user?.id) {
+      setRecentSessions([]);
+      return;
+    }
+
+    const sessions = await chatAPI.getUserSessions(user.id);
+    setRecentSessions(sessions);
+  };
+
   /* ── load history ── */
   useEffect(() => {
+    const requestId = ++historyRequestRef.current;
+
     const loadChatHistory = async () => {
-      if (!sessionId) { setMessages([initialMessage]); return; }
+      if (!sessionId) {
+        setIsHistoryLoading(false);
+        setMessages([initialMessage]);
+        return;
+      }
+
+      setIsHistoryLoading(true);
       const persistedMessages = await chatAPI.getSessionMessages(sessionId);
-      if (persistedMessages.length === 0) { setMessages([initialMessage]); return; }
+      if (historyRequestRef.current !== requestId) {
+        return;
+      }
+
+      if (persistedMessages.length === 0) {
+        setIsHistoryLoading(false);
+        setMessages([initialMessage]);
+        return;
+      }
+
       setMessages(
         persistedMessages.map((m) => ({
           id: `${m.message_type}-${m.created_at}`,
@@ -125,19 +155,22 @@ export const ChatbotWidget = () => {
           content: m.content,
         }))
       );
+      setIsHistoryLoading(false);
     };
+
     void loadChatHistory();
+
+    return () => {
+      if (historyRequestRef.current === requestId) {
+        historyRequestRef.current += 1;
+      }
+    };
   }, [sessionId]);
 
   /* ── recent sessions ── */
   useEffect(() => {
-    const loadRecentSessions = async () => {
-      if (!isAuthenticated || !user?.id) { setRecentSessions([]); return; }
-      const sessions = await chatAPI.getUserSessions(user.id);
-      setRecentSessions(sessions);
-    };
     void loadRecentSessions();
-  }, [isAuthenticated, user?.id, sessionId]);
+  }, [isAuthenticated, user?.id]);
 
   /* ── auto-scroll ── */
   useEffect(() => {
@@ -151,6 +184,7 @@ export const ChatbotWidget = () => {
     setSessionId(null);
     setMessages([initialMessage]);
     setInput('');
+    setIsHistoryLoading(false);
     localStorage.removeItem(sessionStorageKey);
     toast({
       title: 'Started a new chat',
@@ -161,8 +195,12 @@ export const ChatbotWidget = () => {
   };
 
   const handleOpenSession = (targetSessionId: string) => {
+    if (targetSessionId === sessionId) {
+      return;
+    }
     setSessionId(targetSessionId);
     setInput('');
+    setShowRecentThreads(false);
   };
 
   const handleAssistantAction = (actionType?: string | null) => {
@@ -204,6 +242,7 @@ export const ChatbotWidget = () => {
         user_id: isAuthenticated ? user?.id : undefined,
       });
       if (response.session_id) setSessionId(response.session_id);
+      void loadRecentSessions();
 
       const products = await searchProducts(trimmed);
       setMessages((prev) => [
@@ -260,13 +299,13 @@ export const ChatbotWidget = () => {
           Full-height on all screen sizes.
           Width:
             • mobile  → full width (w-screen) with no side margins so nothing clips
-            • ≥640 px → fixed 480 px wide panel
+            • tablet+ → wider panel so markdown tables and long prompts fit better
         */}
         <SheetContent
           side="right"
           className={cn(
             'p-0 flex flex-col',
-            'w-screen sm:w-[480px] sm:max-w-[480px]',
+            'w-screen sm:w-[680px] sm:max-w-[92vw] lg:w-[820px] lg:max-w-[820px]',
             'h-[100dvh]',           // dynamic viewport height — correct on mobile with soft keyboard
             'overflow-hidden',
           )}
@@ -326,6 +365,59 @@ export const ChatbotWidget = () => {
                   </Button>
                 ))}
               </div>
+
+              {isAuthenticated && recentSessions.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowRecentThreads((prev) => !prev)}
+                    className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-left transition-colors hover:bg-muted/40"
+                  >
+                    <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      <History className="h-3.5 w-3.5" />
+                      Recent Threads
+                    </div>
+                    {showRecentThreads ? (
+                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </button>
+
+                  {showRecentThreads && (
+                    <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
+                      {recentSessions.slice(0, 5).map((session) => (
+                        <button
+                          key={session.session_id}
+                          type="button"
+                          onClick={() => handleOpenSession(session.session_id)}
+                          disabled={isSending}
+                          className={cn(
+                            'w-full rounded-xl border px-3 py-3 text-left transition-colors',
+                            session.session_id === sessionId
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border hover:bg-muted/40'
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-foreground">
+                                {session.title}
+                              </p>
+                              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                {session.last_message_preview}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-[11px] text-muted-foreground">
+                              {formatSessionTimestamp(session.updated_at)}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* ── Messages ── */}
@@ -356,9 +448,10 @@ export const ChatbotWidget = () => {
                         {/* Bubble */}
                         <div
                           className={cn(
-                            'relative group/message rounded-2xl px-3.5 sm:px-4 py-3 text-sm leading-relaxed shadow-sm',
-                            /* Max width: narrower on small screens to leave room for avatar */
-                            'max-w-[calc(100%-3rem)] sm:max-w-[85%]',
+                            'relative min-w-0 overflow-hidden group/message rounded-2xl px-3.5 sm:px-4 py-3 text-sm leading-relaxed shadow-sm',
+                            message.role === 'assistant'
+                              ? 'max-w-[calc(100%-3rem)] sm:max-w-[96%]'
+                              : 'max-w-[calc(100%-3rem)] sm:max-w-[78%] lg:max-w-[72%]',
                             message.role === 'assistant'
                               ? 'bg-secondary text-foreground'
                               : 'bg-primary text-primary-foreground'
@@ -383,12 +476,15 @@ export const ChatbotWidget = () => {
                           {/* Content */}
                           {message.role === 'assistant' ? (
                             <div className="prose prose-sm dark:prose-invert max-w-none
+                              break-words overflow-x-hidden
                               [&_table]:w-full [&_table]:border-collapse [&_table]:my-3
+                              [&_table]:block [&_table]:overflow-x-auto
                               [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold
                               [&_th]:uppercase [&_th]:tracking-wider [&_th]:bg-muted/50
                               [&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:border-t [&_td]:border-border
                               [&_tr]:transition-colors [&_tr]:hover:bg-muted/30
                               [&_p]:my-2 [&_p]:leading-relaxed
+                              [&_p]:break-words
                               [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-4
                               [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-4
                               [&_li]:my-0.5
@@ -398,9 +494,9 @@ export const ChatbotWidget = () => {
                               [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:my-2
                               [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:my-1.5
                               [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded
-                              [&_code]:text-xs [&_code]:font-mono
+                              [&_code]:text-xs [&_code]:font-mono [&_code]:break-all
                               [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-lg
-                              [&_pre]:overflow-x-auto [&_pre]:my-2
+                              [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:my-2
                               [&_blockquote]:border-l-4 [&_blockquote]:border-primary
                               [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:italic
                               [&_hr]:my-3 [&_hr]:border-border
@@ -437,7 +533,9 @@ export const ChatbotWidget = () => {
                               </ReactMarkdown>
                             </div>
                           ) : (
-                            <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                            <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                              {message.content}
+                            </div>
                           )}
 
                           {/* Product cards */}
@@ -529,24 +627,38 @@ export const ChatbotWidget = () => {
                          pb-[env(safe-area-inset-bottom,0px)]"
                          /* ↑ extra padding for iPhone home-bar */
             >
-              <div className="flex items-center gap-2 sm:gap-3">
-                <Input
+              <div className="flex items-end gap-2 sm:gap-3">
+                <Textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask about products, outfits, or occasions…"
-                  disabled={isSending}
-                  className="flex-1 min-w-0 text-sm"
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      event.preventDefault();
+                      if (canSend && !isHistoryLoading) {
+                        void sendMessage(input);
+                      }
+                    }
+                  }}
+                  placeholder="Ask about products, outfits, or occasions..."
+                  disabled={isSending || isHistoryLoading}
+                  rows={2}
+                  className="min-h-[52px] flex-1 resize-none text-sm leading-5"
                 />
                 <Button
                   type="submit"
                   size="icon"
-                  disabled={!canSend}
-                  className="shrink-0 transition-all hover:scale-105 active:scale-95"
+                  disabled={!canSend || isHistoryLoading}
+                  className="mb-1 shrink-0 transition-all hover:scale-105 active:scale-95"
                   aria-label="Send"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
+              {isHistoryLoading && (
+                <p className="mt-2 text-[10px] sm:text-xs text-muted-foreground text-center">
+                  Loading selected chat…
+                </p>
+              )}
               <p className="text-[10px] sm:text-xs text-muted-foreground mt-2 text-center leading-none">
                 Powered by AI • Get personalised fashion recommendations
               </p>
