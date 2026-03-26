@@ -1,15 +1,27 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown';
-import { Bot, MessageCircle, Send, Sparkles, User as UserIcon, X } from 'lucide-react';
+import {
+  Bot, History, MessageCircle, Send, Sparkles,
+  User as UserIcon, X, ChevronDown, ChevronUp, Copy, Check
+} from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { chatAPI, ChatSessionSummary, salesAPI } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { mockProducts } from '@/data/mockData';
 import { Product } from '@/types';
+import { productAPI } from '@/services/api';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface ChatMessage {
   id: string;
@@ -18,381 +30,528 @@ interface ChatMessage {
   products?: Product[];
 }
 
+const SESSION_KEY = 'sales_chat_session_id';
+
 const STARTER_PROMPTS = [
   'Recommend an outfit for a wedding',
-  'Show me men\'s formal wear',
-  'What\'s available under $300?',
+  "Show me men's formal wear",
+  'What products are available under 3000?',
 ];
 
 const initialMessage: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
-  content: 'Hi! 👋 I\'m your **Style Assistant**. I can help you find the perfect outfit!\n\nAsk me about:\n- 🎉 Outfit recommendations for any occasion\n- 👗 Browse by category or style\n- 💰 Products within your budget\n- 📦 Product details and availability',
+  content:
+    'Hi, I am your ABFRL shopping assistant. Ask for outfit ideas, stock help, offers, checkout guidance, or order support.',
 };
 
-function searchProducts(query: string): { reply: string; products: Product[] } {
-  const q = query.toLowerCase();
+/* ─── Markdown table sub-components ─── */
+const TableComponent = ({ children, ...props }: any) => (
+  <div className="overflow-x-auto my-3 rounded-lg border border-border">
+    <table className="min-w-full divide-y divide-border" {...props}>
+      {children}
+    </table>
+  </div>
+);
+const TableHeadComponent = ({ children, ...props }: any) => (
+  <thead className="bg-muted/50" {...props}>{children}</thead>
+);
+const TableBodyComponent = ({ children, ...props }: any) => (
+  <tbody className="divide-y divide-border" {...props}>{children}</tbody>
+);
+const TableRowComponent = ({ children, ...props }: any) => (
+  <tr className="transition-colors hover:bg-muted/30" {...props}>{children}</tr>
+);
+const TableHeaderCellComponent = ({ children, ...props }: any) => (
+  <th className="px-3 py-2 text-left text-xs font-semibold text-foreground uppercase tracking-wider" {...props}>
+    {children}
+  </th>
+);
+const TableCellComponent = ({ children, ...props }: any) => (
+  <td className="px-3 py-2 text-sm text-foreground" {...props}>{children}</td>
+);
 
-  // Price filter
-  const priceMatch = q.match(/under\s*\$?\s*(\d+)/);
-  const minPriceMatch = q.match(/(?:above|over|more than)\s*\$?\s*(\d+)/);
-
-  // Category keywords
-  const categoryMap: Record<string, string[]> = {
-    'women-dresses': ['dress', 'dresses', 'gown', 'gowns'],
-    'women-tops': ['blouse', 'top', 'tops', 'camisole'],
-    'women-bottoms': ['trousers', 'pants', 'bottoms', 'wide-leg'],
-    'women-outerwear': ['coat', 'jacket', 'outerwear'],
-    'men-shirts': ['shirt', 'shirts'],
-    'men-suits': ['suit', 'suits', 'tuxedo', 'blazer'],
-    'men-pants': ['trousers', 'pants', 'chinos'],
-    'men-outerwear': ['coat', 'jacket', 'bomber', 'peacoat'],
-    'kids-girls': ['girls', 'girl'],
-    'kids-boys': ['boys', 'boy'],
-    'kids-baby': ['baby', 'infant', 'christening'],
-  };
-
-  const occasionKeywords = ['formal', 'casual', 'party', 'wedding', 'office', 'vacation'];
-  const genderKeywords: Record<string, string> = {
-    "men's": 'men',
-    "mens": 'men',
-    "men": 'men',
-    "women's": 'women',
-    "womens": 'women',
-    "women": 'women',
-    "kids": 'kids',
-    "children": 'kids',
-  };
-
-  let filtered = [...mockProducts];
-
-  // Gender filter
-  for (const [keyword, gender] of Object.entries(genderKeywords)) {
-    if (q.includes(keyword)) {
-      filtered = filtered.filter(p => p.dress_category.startsWith(gender));
-      break;
-    }
-  }
-
-  // Category filter
-  for (const [cat, keywords] of Object.entries(categoryMap)) {
-    if (keywords.some(k => q.includes(k))) {
-      filtered = filtered.filter(p => p.dress_category === cat);
-      break;
-    }
-  }
-
-  // Occasion filter
-  const matchedOccasion = occasionKeywords.find(o => q.includes(o));
-  if (matchedOccasion) {
-    filtered = filtered.filter(p => p.occasion === matchedOccasion);
-  }
-
-  // Price filters
-  if (priceMatch) {
-    const maxPrice = parseInt(priceMatch[1]);
-    filtered = filtered.filter(p => p.price <= maxPrice);
-  }
-  if (minPriceMatch) {
-    const minPrice = parseInt(minPriceMatch[1]);
-    filtered = filtered.filter(p => p.price >= minPrice);
-  }
-
-  // Text search fallback
-  if (filtered.length === mockProducts.length && !priceMatch && !minPriceMatch && !matchedOccasion) {
-    const words = q.split(/\s+/).filter(w => w.length > 2);
-    filtered = mockProducts.filter(p => {
-      const text = `${p.product_name} ${p.description} ${p.material} ${p.dress_category} ${p.occasion} ${p.colors}`.toLowerCase();
-      return words.some(w => text.includes(w));
-    });
-  }
-
-  // Sort featured first
-  filtered.sort((a, b) => (b.featured_dress ? 1 : 0) - (a.featured_dress ? 1 : 0));
-
-  const results = filtered.slice(0, 6);
-
-  if (results.length === 0) {
-    return {
-      reply: "I couldn't find products matching your request. Try asking about:\n- **Categories**: dresses, suits, shirts, outerwear\n- **Occasions**: formal, casual, party, wedding, office\n- **Budget**: \"under $500\", \"above $200\"\n- **Gender**: men's, women's, kids",
-      products: [],
-    };
-  }
-
-  // Build markdown table
-  let reply = `Found **${filtered.length} product${filtered.length > 1 ? 's' : ''}** for you! Here are the top picks:\n\n`;
-  reply += `| Product | Price | Material | Occasion |\n`;
-  reply += `|---------|-------|----------|----------|\n`;
-
-  for (const p of results) {
-    const name = p.product_name;
-    const price = `$${p.price.toFixed(0)}`;
-    const material = p.material?.split(',')[0] || '—';
-    const occasion = p.occasion ? p.occasion.charAt(0).toUpperCase() + p.occasion.slice(1) : '—';
-    reply += `| ${name} | ${price} | ${material} | ${occasion} |\n`;
-  }
-
-  if (filtered.length > 6) {
-    reply += `\n*...and ${filtered.length - 6} more results.*\n`;
-  }
-
-  reply += `\n👆 Click any product card below to view details!`;
-
-  return { reply, products: results };
-}
-
-function generateResponse(userMessage: string): ChatMessage {
-  const q = userMessage.toLowerCase();
-
-  // Greetings
-  if (/^(hi|hello|hey|hola|namaste|sup)\b/.test(q)) {
-    return {
-      id: `assistant-${Date.now()}`,
-      role: 'assistant',
-      content: "Hello! 😊 How can I help you today? I can recommend outfits, show products by category, or help you find something in your budget!",
-    };
-  }
-
-  // Thanks
-  if (/thank|thanks|thx/.test(q)) {
-    return {
-      id: `assistant-${Date.now()}`,
-      role: 'assistant',
-      content: "You're welcome! 💖 Let me know if you need anything else. Happy shopping!",
-    };
-  }
-
-  // Help
-  if (/^(help|what can you do|commands)/.test(q)) {
-    return {
-      id: `assistant-${Date.now()}`,
-      role: 'assistant',
-      content: "Here's what I can do:\n\n| Command | Example |\n|---------|--------|\n| 🔍 Search products | *\"Show me silk dresses\"* |\n| 🎉 Occasion search | *\"Outfit for a wedding\"* |\n| 💰 Budget search | *\"Products under $300\"* |\n| 👔 Category browse | *\"Men's suits\"* |\n| 👧 Kids' fashion | *\"Girls' party dresses\"* |\n\nJust type naturally — I'll understand!",
-    };
-  }
-
-  // Product search
-  const { reply, products } = searchProducts(userMessage);
-  return {
-    id: `assistant-${Date.now()}`,
-    role: 'assistant',
-    content: reply,
-    products,
-  };
-}
-
+/* ─── Main component ─── */
 export const ChatbotWidget = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const { openCart } = useCart();
+  const { toast } = useToast();
+
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([initialMessage]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [recentSessions, setRecentSessions] = useState<ChatSessionSummary[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  const canSend = useMemo(() => input.trim().length > 0 && !isSending, [input, isSending]);
+  const sessionStorageKey = useMemo(
+    () =>
+      isAuthenticated && user?.id
+        ? `${SESSION_KEY}:${user.id}`
+        : `${SESSION_KEY}:guest`,
+    [isAuthenticated, user?.id]
+  );
 
+  /* ── session persistence ── */
+  useEffect(() => {
+    const savedSessionId = localStorage.getItem(sessionStorageKey);
+    setSessionId(savedSessionId || null);
+    setMessages([initialMessage]);
+    setInput('');
+  }, [sessionStorageKey]);
+
+  useEffect(() => {
+    if (sessionId) {
+      localStorage.setItem(sessionStorageKey, sessionId);
+    } else {
+      localStorage.removeItem(sessionStorageKey);
+    }
+  }, [sessionId, sessionStorageKey]);
+
+  /* ── load history ── */
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      if (!sessionId) { setMessages([initialMessage]); return; }
+      const persistedMessages = await chatAPI.getSessionMessages(sessionId);
+      if (persistedMessages.length === 0) { setMessages([initialMessage]); return; }
+      setMessages(
+        persistedMessages.map((m) => ({
+          id: `${m.message_type}-${m.created_at}`,
+          role: m.message_type === 'assistant' ? 'assistant' : 'user',
+          content: m.content,
+        }))
+      );
+    };
+    void loadChatHistory();
+  }, [sessionId]);
+
+  /* ── recent sessions ── */
+  useEffect(() => {
+    const loadRecentSessions = async () => {
+      if (!isAuthenticated || !user?.id) { setRecentSessions([]); return; }
+      const sessions = await chatAPI.getUserSessions(user.id);
+      setRecentSessions(sessions);
+    };
+    void loadRecentSessions();
+  }, [isAuthenticated, user?.id, sessionId]);
+
+  /* ── auto-scroll ── */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, open]);
 
+  const canSend = useMemo(() => input.trim().length > 0 && !isSending, [input, isSending]);
+
+  /* ── handlers ── */
   const handleNewChat = () => {
+    setSessionId(null);
     setMessages([initialMessage]);
+    setInput('');
+    localStorage.removeItem(sessionStorageKey);
+    toast({
+      title: 'Started a new chat',
+      description: isAuthenticated
+        ? 'Your next message will open a fresh session while still using your older account context.'
+        : 'Your next message will open a fresh guest session.',
+    });
+  };
+
+  const handleOpenSession = (targetSessionId: string) => {
+    setSessionId(targetSessionId);
     setInput('');
   };
 
-  const sendMessage = (messageText: string) => {
+  const handleAssistantAction = (actionType?: string | null) => {
+    if (!actionType) return;
+    if (actionType === 'checkout') { navigate('/checkout'); setOpen(false); return; }
+    if (actionType === 'add_to_cart') {
+      openCart();
+      toast({ title: 'Cart opened', description: 'The assistant suggested adding an item. Review your bag here.' });
+    }
+  };
+
+  const searchProducts = async (query: string): Promise<Product[]> => {
+    try { return await productAPI.getProducts({ q: query }); }
+    catch { return []; }
+  };
+
+  const copyToClipboard = async (text: string, messageId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMessageId(messageId);
+      setTimeout(() => setCopiedMessageId(null), 2000);
+      toast({ title: 'Copied!', description: 'Message copied to clipboard' });
+    } catch { /* silent */ }
+  };
+
+  const sendMessage = async (messageText: string) => {
     const trimmed = messageText.trim();
     if (!trimmed) return;
 
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: trimmed,
-    };
-
-    setMessages(prev => [...prev, userMessage]);
+    const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: trimmed, products: [] };
+    setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsSending(true);
 
-    // Simulate slight delay for natural feel
-    setTimeout(() => {
-      const response = generateResponse(trimmed);
-      setMessages(prev => [...prev, response]);
+    try {
+      const response = await salesAPI.sendMessage({
+        message: trimmed,
+        session_id: sessionId || undefined,
+        user_id: isAuthenticated ? user?.id : undefined,
+      });
+      if (response.session_id) setSessionId(response.session_id);
+
+      const products = await searchProducts(trimmed);
+      setMessages((prev) => [
+        ...prev,
+        { id: `assistant-${Date.now()}`, role: 'assistant', content: response.reply, products },
+      ]);
+      handleAssistantAction(response.action_type);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-error-${Date.now()}`,
+          role: 'assistant',
+          content: 'I could not reach the shopping assistant just now. Please try again in a moment.',
+          products: [],
+        },
+      ]);
+    } finally {
       setIsSending(false);
-    }, 400 + Math.random() * 400);
+    }
   };
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    sendMessage(input);
+    await sendMessage(input);
   };
 
+  const formatSessionTimestamp = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Recent';
+    return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(date);
+  };
+
+  /* ─────────────────────────── RENDER ─────────────────────────── */
   return (
-    <div className="fixed bottom-24 right-4 z-50 md:bottom-6 md:right-6">
+    /* Trigger button — sticks to bottom-right, clears mobile nav */
+    <div className="fixed bottom-20 right-4 z-50 sm:bottom-6 sm:right-6">
       <Sheet open={open} onOpenChange={setOpen}>
+
+        {/* ── FAB ── */}
         <SheetTrigger asChild>
           <Button
             size="lg"
-            className="h-14 rounded-full px-5 shadow-xl bg-primary hover:bg-primary/90 text-primary-foreground"
+            className="h-13 gap-2 rounded-full px-5 shadow-xl bg-primary hover:bg-primary/90
+                       text-primary-foreground transition-all duration-200 hover:scale-105 active:scale-95"
           >
-            <MessageCircle className="h-5 w-5 mr-2" />
-            Ask Stylist AI
+            <MessageCircle className="h-5 w-5 shrink-0" />
+            <span className="hidden xs:inline">Ask Stylist AI</span>
           </Button>
         </SheetTrigger>
-        <SheetContent side="right" className="w-full p-0 sm:max-w-lg">
-          <div className="flex h-full flex-col bg-background">
-            {/* Header */}
-            <SheetHeader className="border-b px-6 py-5 text-left">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10">
+
+        {/* ── Panel ── */}
+        {/*
+          Full-height on all screen sizes.
+          Width:
+            • mobile  → full width (w-screen) with no side margins so nothing clips
+            • ≥640 px → fixed 480 px wide panel
+        */}
+        <SheetContent
+          side="right"
+          className={cn(
+            'p-0 flex flex-col',
+            'w-screen sm:w-[480px] sm:max-w-[480px]',
+            'h-[100dvh]',           // dynamic viewport height — correct on mobile with soft keyboard
+            'overflow-hidden',
+          )}
+        >
+          <div className="flex h-full flex-col bg-background overflow-hidden">
+
+            {/* ── Header ── */}
+            <SheetHeader className="shrink-0 border-b px-4 sm:px-6 py-4 text-left bg-gradient-to-r from-primary/5 to-transparent">
+              <div className="flex items-center justify-between gap-3 min-w-0">
+
+                {/* Left: avatar + title */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 animate-pulse">
                     <Bot className="h-5 w-5 text-primary" />
                   </div>
-                  <div>
-                    <SheetTitle className="flex items-center gap-2 text-xl font-serif">
+                  <div className="min-w-0">
+                    <SheetTitle className="flex items-center gap-2 text-base sm:text-xl font-serif leading-tight truncate">
                       Style Assistant
-                      <Badge variant="secondary" className="font-normal text-xs">AI</Badge>
+                      <Badge variant="secondary" className="shrink-0 font-normal text-xs bg-primary/10 text-primary">
+                        AI
+                      </Badge>
                     </SheetTitle>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate">
                       Fashion recommendations & product search
                     </p>
                   </div>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={handleNewChat}>
+
+                {/* Right: New Chat */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNewChat}
+                  className="shrink-0 hover:bg-primary/10 text-xs sm:text-sm"
+                >
                   New Chat
                 </Button>
               </div>
             </SheetHeader>
 
-            {/* Starter prompts */}
-            <div className="border-b px-6 py-4">
+            {/* ── Starter prompts ── */}
+            <div className="shrink-0 border-b px-4 sm:px-6 py-3 bg-muted/5">
               <div className="flex flex-wrap gap-2">
-                {STARTER_PROMPTS.map(prompt => (
+                {STARTER_PROMPTS.map((prompt) => (
                   <Button
                     key={prompt}
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="rounded-full"
+                    className="rounded-full hover:bg-primary/10 hover:border-primary transition-all text-xs"
                     onClick={() => sendMessage(prompt)}
                     disabled={isSending}
                   >
-                    <Sparkles className="mr-2 h-3.5 w-3.5" />
-                    {prompt}
+                    <Sparkles className="mr-1.5 h-3 w-3 shrink-0" />
+                    <span className="truncate max-w-[140px] sm:max-w-none">{prompt}</span>
                   </Button>
                 ))}
               </div>
             </div>
 
-            {/* Messages */}
-            <ScrollArea className="flex-1 px-6 py-5">
-              <div className="space-y-4">
-                {messages.map(message => (
-                  <div key={message.id}>
-                    <div
-                      className={cn(
-                        'flex gap-3',
-                        message.role === 'user' ? 'justify-end' : 'justify-start'
-                      )}
-                    >
-                      {message.role === 'assistant' && (
-                        <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
-                          <Bot className="h-4 w-4 text-primary" />
-                        </div>
-                      )}
+            {/* ── Messages ── */}
+            {/*
+              flex-1 + min-h-0 is the critical combination:
+              flex-1 lets it grow, min-h-0 lets the inner ScrollArea actually scroll
+              instead of pushing the footer out of view.
+            */}
+            <div className="flex-1 min-h-0">
+              <ScrollArea className="h-full px-4 sm:px-6 py-4">
+                <div className="space-y-4 pb-2">
 
+                  {messages.map((message) => (
+                    <div key={message.id} className="group">
                       <div
                         className={cn(
-                          'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm',
-                          message.role === 'assistant'
-                            ? 'bg-secondary text-foreground'
-                            : 'bg-primary text-primary-foreground'
+                          'flex gap-2 sm:gap-3',
+                          message.role === 'user' ? 'justify-end' : 'justify-start'
                         )}
                       >
-                        {message.role === 'assistant' ? (
-                          <div className="prose prose-sm dark:prose-invert max-w-none [&_table]:text-xs [&_table]:w-full [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold [&_th]:border-b [&_th]:border-border [&_td]:px-2 [&_td]:py-1.5 [&_td]:border-b [&_td]:border-border/50 [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0.5 [&_strong]:text-foreground [&_em]:text-muted-foreground">
-                            <ReactMarkdown>{message.content}</ReactMarkdown>
+                        {/* Bot avatar */}
+                        {message.role === 'assistant' && (
+                          <div className="mt-1 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
+                            <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
                           </div>
-                        ) : (
-                          message.content
+                        )}
+
+                        {/* Bubble */}
+                        <div
+                          className={cn(
+                            'relative group/message rounded-2xl px-3.5 sm:px-4 py-3 text-sm leading-relaxed shadow-sm',
+                            /* Max width: narrower on small screens to leave room for avatar */
+                            'max-w-[calc(100%-3rem)] sm:max-w-[85%]',
+                            message.role === 'assistant'
+                              ? 'bg-secondary text-foreground'
+                              : 'bg-primary text-primary-foreground'
+                          )}
+                        >
+                          {/* Copy button (assistant only) */}
+                          {message.role === 'assistant' && (
+                            <button
+                              onClick={() => copyToClipboard(message.content, message.id)}
+                              className="absolute top-2 right-2 opacity-0 group-hover/message:opacity-100
+                                         transition-opacity p-1 rounded hover:bg-muted"
+                              aria-label="Copy message"
+                            >
+                              {copiedMessageId === message.id ? (
+                                <Check className="h-3.5 w-3.5 text-green-500" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                              )}
+                            </button>
+                          )}
+
+                          {/* Content */}
+                          {message.role === 'assistant' ? (
+                            <div className="prose prose-sm dark:prose-invert max-w-none
+                              [&_table]:w-full [&_table]:border-collapse [&_table]:my-3
+                              [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold
+                              [&_th]:uppercase [&_th]:tracking-wider [&_th]:bg-muted/50
+                              [&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:border-t [&_td]:border-border
+                              [&_tr]:transition-colors [&_tr]:hover:bg-muted/30
+                              [&_p]:my-2 [&_p]:leading-relaxed
+                              [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-4
+                              [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-4
+                              [&_li]:my-0.5
+                              [&_strong]:text-foreground [&_strong]:font-semibold
+                              [&_em]:text-muted-foreground
+                              [&_h1]:text-base [&_h1]:font-bold [&_h1]:my-3
+                              [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:my-2
+                              [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:my-1.5
+                              [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded
+                              [&_code]:text-xs [&_code]:font-mono
+                              [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-lg
+                              [&_pre]:overflow-x-auto [&_pre]:my-2
+                              [&_blockquote]:border-l-4 [&_blockquote]:border-primary
+                              [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:italic
+                              [&_hr]:my-3 [&_hr]:border-border
+                              pr-6"  /* extra right padding so copy button never overlaps text */
+                            >
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                rehypePlugins={[rehypeRaw]}
+                                components={{
+                                  table: TableComponent,
+                                  thead: TableHeadComponent,
+                                  tbody: TableBodyComponent,
+                                  tr: TableRowComponent,
+                                  th: TableHeaderCellComponent,
+                                  td: TableCellComponent,
+                                  code({ node, inline, className, children, ...props }: any) {
+                                    const match = /language-(\w+)/.exec(className || '');
+                                    return !inline && match ? (
+                                      <SyntaxHighlighter
+                                        style={vscDarkPlus}
+                                        language={match[1]}
+                                        PreTag="div"
+                                        {...props}
+                                      >
+                                        {String(children).replace(/\n$/, '')}
+                                      </SyntaxHighlighter>
+                                    ) : (
+                                      <code className={className} {...props}>{children}</code>
+                                    );
+                                  },
+                                }}
+                              >
+                                {message.content}
+                              </ReactMarkdown>
+                            </div>
+                          ) : (
+                            <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                          )}
+
+                          {/* Product cards */}
+                          {message.products && message.products.length > 0 && (
+                            <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
+                              {message.products.slice(0, 4).map((product) => (
+                                <Link
+                                  key={product.id}
+                                  to={`/product/${product.id}`}
+                                  onClick={() => setOpen(false)}
+                                  className="group/card block rounded-xl border border-border bg-card p-2 sm:p-3
+                                             transition-all hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5"
+                                >
+                                  {/* Image */}
+                                  <div className="aspect-square w-full overflow-hidden rounded-lg bg-muted mb-2">
+                                    <img
+                                      src={product.image_url || '/placeholder.svg'}
+                                      alt={product.product_name}
+                                      className="h-full w-full object-cover transition-transform group-hover/card:scale-105"
+                                      loading="lazy"
+                                    />
+                                  </div>
+
+                                  {/* Name */}
+                                  <p className="text-xs sm:text-sm font-medium text-foreground line-clamp-2 leading-tight mb-1">
+                                    {product.product_name}
+                                  </p>
+
+                                  {/* Price + occasion badge */}
+                                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                                    <p className="text-xs sm:text-sm font-bold text-primary shrink-0">
+                                      ₹{product.price.toFixed(0)}
+                                    </p>
+                                    {(product as any).occasion && (
+                                      <Badge variant="outline" className="text-[9px] sm:text-[10px] px-1 py-0 shrink-0">
+                                        {(product as any).occasion}
+                                      </Badge>
+                                    )}
+                                  </div>
+
+                                  {/* Brand */}
+                                  {(product as any).brand && (
+                                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
+                                      {(product as any).brand}
+                                    </p>
+                                  )}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* User avatar */}
+                        {message.role === 'user' && (
+                          <div className="mt-1 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                            <UserIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                          </div>
                         )}
                       </div>
-
-                      {message.role === 'user' && (
-                        <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                          <UserIcon className="h-4 w-4 text-primary" />
-                        </div>
-                      )}
                     </div>
+                  ))}
 
-                    {/* Product cards */}
-                    {message.products && message.products.length > 0 && (
-                      <div className="mt-3 ml-11 grid grid-cols-2 gap-2">
-                        {message.products.map(product => (
-                          <Link
-                            key={product.id}
-                            to={`/product/${product.id}`}
-                            onClick={() => setOpen(false)}
-                            className="group block rounded-xl border border-border bg-card p-2 transition-all hover:shadow-md hover:border-primary/30"
-                          >
-                            <div className="aspect-square w-full overflow-hidden rounded-lg bg-muted mb-2">
-                              <img
-                                src={product.image_url || '/placeholder.svg'}
-                                alt={product.product_name}
-                                className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                              />
-                            </div>
-                            <p className="text-xs font-medium text-foreground line-clamp-2 leading-tight">
-                              {product.product_name}
-                            </p>
-                            <p className="text-xs font-semibold text-primary mt-1">
-                              ${product.price.toFixed(0)}
-                            </p>
-                            {product.occasion && (
-                              <Badge variant="outline" className="mt-1 text-[10px] px-1.5 py-0">
-                                {product.occasion}
-                              </Badge>
-                            )}
-                          </Link>
-                        ))}
+                  {/* Typing indicator */}
+                  {isSending && (
+                    <div className="flex gap-2 sm:gap-3">
+                      <div className="mt-1 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
+                        <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
                       </div>
-                    )}
-                  </div>
-                ))}
-
-                {isSending && (
-                  <div className="flex gap-3">
-                    <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
-                      <Bot className="h-4 w-4 text-primary" />
+                      <div className="rounded-2xl bg-secondary px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
+                        <span className="flex gap-1 items-center">
+                          <span className="animate-bounce [animation-delay:0ms]   h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                          <span className="animate-bounce [animation-delay:150ms] h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                          <span className="animate-bounce [animation-delay:300ms] h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                        </span>
+                        Thinking…
+                      </div>
                     </div>
-                    <div className="rounded-2xl bg-secondary px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
-                      <span className="flex gap-1">
-                        <span className="animate-bounce [animation-delay:0ms] h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
-                        <span className="animate-bounce [animation-delay:150ms] h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
-                        <span className="animate-bounce [animation-delay:300ms] h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
-                      </span>
-                      Thinking...
-                    </div>
-                  </div>
-                )}
+                  )}
 
-                <div ref={bottomRef} />
-              </div>
-            </ScrollArea>
+                  <div ref={bottomRef} />
+                </div>
+              </ScrollArea>
+            </div>
 
-            {/* Input */}
-            <form onSubmit={handleSubmit} className="border-t px-6 py-4">
-              <div className="flex gap-3">
+            {/* ── Input footer ── */}
+            <form
+              onSubmit={handleSubmit}
+              className="shrink-0 border-t px-4 sm:px-6 py-3 sm:py-4 bg-background
+                         pb-[env(safe-area-inset-bottom,0px)]"
+                         /* ↑ extra padding for iPhone home-bar */
+            >
+              <div className="flex items-center gap-2 sm:gap-3">
                 <Input
                   value={input}
-                  onChange={e => setInput(e.target.value)}
-                  placeholder="Ask about products, outfits, or occasions..."
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Ask about products, outfits, or occasions…"
                   disabled={isSending}
+                  className="flex-1 min-w-0 text-sm"
                 />
-                <Button type="submit" size="icon" disabled={!canSend}>
+                <Button
+                  type="submit"
+                  size="icon"
+                  disabled={!canSend}
+                  className="shrink-0 transition-all hover:scale-105 active:scale-95"
+                  aria-label="Send"
+                >
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-2 text-center leading-none">
+                Powered by AI • Get personalised fashion recommendations
+              </p>
             </form>
+
           </div>
         </SheetContent>
       </Sheet>
