@@ -74,7 +74,7 @@ const Checkout: React.FC = () => {
           zipCode: formData.zipCode
         },
         items.map(item => ({
-          product_id: item.product.id,
+          product_id: String(item.product.id),
           product_name: item.product.product_name,
           quantity: item.quantity,
           price: item.product.price,

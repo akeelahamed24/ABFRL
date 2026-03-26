@@ -401,7 +401,7 @@ export const mockProducts: Product[] = [
 
 export const mockUsers: User[] = [
   {
-    id: 1,
+    id: "1",
     email: "sarah.johnson@email.com",
     password_hash: "hashed_password_1",
     first_name: "Sarah",
@@ -419,7 +419,7 @@ export const mockUsers: User[] = [
     updated_at: "2024-01-10"
   },
   {
-    id: 2,
+    id: "2",
     email: "admin@luxefashion.com",
     password_hash: "hashed_admin_password",
     first_name: "Admin",
@@ -437,7 +437,7 @@ export const mockUsers: User[] = [
     updated_at: "2024-01-01"
   },
   {
-    id: 3,
+    id: "3",
     email: "michael.chen@email.com",
     password_hash: "hashed_password_3",
     first_name: "Michael",
@@ -458,9 +458,9 @@ export const mockUsers: User[] = [
 
 export const mockOrders: Order[] = [
   {
-    id: 1,
+    id: "1",
     order_number: "LUX-2024-001",
-    user_id: 1,
+    user_id: "1",
     total_amount: 1324.00,
     tax_amount: 115.84,
     shipping_amount: 0,
@@ -500,9 +500,9 @@ export const mockOrders: Order[] = [
     ]
   },
   {
-    id: 2,
+    id: "2",
     order_number: "LUX-2024-002",
-    user_id: 1,
+    user_id: "1",
     total_amount: 899.00,
     tax_amount: 78.66,
     shipping_amount: 15.00,
@@ -532,9 +532,9 @@ export const mockOrders: Order[] = [
     ]
   },
   {
-    id: 3,
+    id: "3",
     order_number: "LUX-2024-003",
-    user_id: 3,
+    user_id: "3",
     total_amount: 1450.00,
     tax_amount: 126.88,
     shipping_amount: 0,
