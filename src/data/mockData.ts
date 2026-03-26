@@ -402,6 +402,7 @@ export const mockProducts: Product[] = [
 export const mockUsers: User[] = [
   {
     id: "1",
+    email: "sarah.johnson@email.com",
     password_hash: "hashed_password_1",
     first_name: "Sarah",
     last_name: "Johnson",
