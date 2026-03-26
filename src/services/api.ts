@@ -1,5 +1,13 @@
 // API service for communicating with backend
-import { CatalogCategoryMeta, CatalogOccasionMeta } from '@/types';
+import {
+  CallWorkflow,
+  CatalogCategoryMeta,
+  CatalogOccasionMeta,
+  NotificationRecord,
+  Order,
+  OrderTimelineEntry,
+  User,
+} from '@/types';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -63,6 +71,19 @@ export interface ChatSessionSummary {
   message_count: number;
   title: string;
   last_message_preview: string;
+}
+
+export interface ActivitySummaryResponse {
+  last_activity_at?: string | null;
+  recent_activities: Array<Record<string, any>>;
+  abandoned_cart: boolean;
+  cart_item_count: number;
+  top_product_views: Array<{ product_id: number; view_count: number }>;
+}
+
+export interface CommunicationsResponse {
+  notifications: NotificationRecord[];
+  call_workflows: CallWorkflow[];
 }
 
 export const productAPI = {
@@ -135,7 +156,7 @@ export const productAPI = {
 
 export const orderAPI = {
   // Get user's orders
-  async getOrders(userId: string) {
+  async getOrders(userId: string): Promise<Order[]> {
     try {
       const response = await fetch(`${API_BASE}/user/${userId}/orders`);
       if (!response.ok) throw new Error('Failed to fetch orders');
@@ -148,7 +169,7 @@ export const orderAPI = {
   },
 
   // Get single order
-  async getOrder(orderNumber: string) {
+  async getOrder(orderNumber: string): Promise<Order | null> {
     try {
       const response = await fetch(`${API_BASE}/orders/${orderNumber}`);
       if (!response.ok) throw new Error('Order not found');
@@ -159,22 +180,61 @@ export const orderAPI = {
     }
   },
 
-  // Create order (checkout)
+  async getTimeline(orderNumber: string): Promise<OrderTimelineEntry[]> {
+    try {
+      const response = await fetch(`${API_BASE}/orders/${orderNumber}/timeline`);
+      if (!response.ok) throw new Error('Failed to fetch order timeline');
+      const data = await response.json();
+      return data.timeline || [];
+    } catch (error) {
+      console.error('Error fetching order timeline:', error);
+      return [];
+    }
+  },
+
+  async advanceOrder(orderNumber: string, targetStatus: string, note?: string) {
+    const response = await fetch(`${API_BASE}/orders/${orderNumber}/advance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_status: targetStatus, note }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to advance order');
+    }
+    return response.json();
+  },
+
+  async retryPayment(orderNumber: string, paymentId: string, scenario: 'success' | 'pending' | 'failed' = 'success') {
+    const response = await fetch(`${API_BASE}/orders/${orderNumber}/payments/${paymentId}/retry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to retry payment');
+    }
+    return response.json();
+  },
+
   async createOrder(data: {
     user_id: string;
     items: any[];
     shipping_address: string;
     billing_address: string;
     payment_method: string;
+    payment_scenario?: 'success' | 'pending' | 'failed';
   }) {
     try {
-      const searchParams = new URLSearchParams({
-        shipping_address: data.shipping_address,
-        billing_address: data.billing_address,
-        payment_method: data.payment_method,
-      });
-      const response = await fetch(`${API_BASE}/user/${data.user_id}/checkout?${searchParams.toString()}`, {
+      const response = await fetch(`${API_BASE}/user/${data.user_id}/checkout`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shipping_address: data.shipping_address,
+          billing_address: data.billing_address,
+          payment_method: data.payment_method,
+          payment_scenario: data.payment_scenario || 'success',
+          items: data.items,
+        }),
       });
       if (!response.ok) throw new Error('Failed to create order');
       return await response.json();
@@ -202,9 +262,18 @@ export const cartAPI = {
   },
 
   // Add item to cart
-  async addToCart(userId: string, productId: string, quantity: number = 1) {
+  async addToCart(
+    userId: string,
+    productId: string,
+    quantity: number = 1,
+    size?: string,
+    color?: string
+  ) {
     try {
-      const response = await fetch(`${API_BASE}/user/${userId}/cart/add/${productId}?quantity=${quantity}`, {
+      const params = new URLSearchParams({ quantity: String(quantity) });
+      if (size) params.set('size', size);
+      if (color) params.set('color', color);
+      const response = await fetch(`${API_BASE}/user/${userId}/cart/add/${productId}?${params.toString()}`, {
         method: 'POST',
       });
       if (!response.ok) throw new Error('Failed to add to cart');
@@ -246,18 +315,25 @@ export const cartAPI = {
       size: string;
       color: string;
     }>,
-    totalAmount: number
+    totalAmount: number,
+    options?: {
+      paymentMethod?: string;
+      paymentScenario?: 'success' | 'pending' | 'failed';
+    }
   ) {
     try {
       const shippingAddress = `${shippingInfo.address}, ${shippingInfo.city}, ${shippingInfo.state} ${shippingInfo.zipCode}`;
-      const searchParams = new URLSearchParams({
-        shipping_address: shippingAddress,
-        billing_address: shippingAddress,
-        payment_method: 'card',
-      });
-
-      const response = await fetch(`${API_BASE}/user/${userId}/checkout?${searchParams.toString()}`, {
+      const response = await fetch(`${API_BASE}/user/${userId}/checkout`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shipping_address: shippingAddress,
+          billing_address: shippingAddress,
+          payment_method: options?.paymentMethod || 'card',
+          payment_scenario: options?.paymentScenario || 'success',
+          items,
+          total_amount: totalAmount,
+        }),
       });
       if (!response.ok) throw new Error('Checkout failed');
       return await response.json();
@@ -306,7 +382,7 @@ export const authAPI = {
     }
   },
 
-  async getProfile(userId: string) {
+  async getProfile(userId: string): Promise<User | null> {
     try {
       const response = await fetch(`${API_BASE}/auth/me/${userId}`);
       if (!response.ok) throw new Error('Failed to fetch profile');
@@ -317,7 +393,7 @@ export const authAPI = {
     }
   },
 
-  async updateProfile(userId: string, updates: Record<string, any>) {
+  async updateProfile(userId: string, updates: Record<string, any>): Promise<User | null> {
     try {
       const response = await fetch(`${API_BASE}/auth/me/${userId}`, {
         method: 'PUT',
@@ -328,6 +404,24 @@ export const authAPI = {
       return await response.json();
     } catch (error) {
       console.error('Error updating profile:', error);
+      return null;
+    }
+  },
+
+  async updateWhatsApp(
+    userId: string,
+    payload: { phone_number?: string | null; connected: boolean; opt_in: boolean }
+  ): Promise<User | null> {
+    try {
+      const response = await fetch(`${API_BASE}/auth/me/${userId}/whatsapp`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error('Failed to update WhatsApp connection');
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating WhatsApp connection:', error);
       return null;
     }
   },
@@ -389,6 +483,71 @@ export const chatAPI = {
     } catch (error) {
       console.error('Error fetching chat sessions:', error);
       return [];
+    }
+  },
+};
+
+export const activityAPI = {
+  async record(
+    userId: string,
+    payload: {
+      activity_type: string;
+      product_id?: number;
+      order_number?: string;
+      metadata?: Record<string, any>;
+    }
+  ) {
+    const response = await fetch(`${API_BASE}/user/${userId}/activity`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to record activity');
+    }
+    return response.json();
+  },
+
+  async getSummary(userId: string): Promise<ActivitySummaryResponse> {
+    try {
+      const response = await fetch(`${API_BASE}/user/${userId}/activity/summary`);
+      if (!response.ok) throw new Error('Failed to fetch activity summary');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching activity summary:', error);
+      return {
+        last_activity_at: null,
+        recent_activities: [],
+        abandoned_cart: false,
+        cart_item_count: 0,
+        top_product_views: [],
+      };
+    }
+  },
+};
+
+export const communicationsAPI = {
+  async getUserCommunications(userId: string): Promise<CommunicationsResponse> {
+    try {
+      const response = await fetch(`${API_BASE}/user/${userId}/communications`);
+      if (!response.ok) throw new Error('Failed to fetch communications');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching communications:', error);
+      return { notifications: [], call_workflows: [] };
+    }
+  },
+};
+
+export const adminAPI = {
+  async getSimulationOrders(): Promise<{ orders: Order[] }> {
+    try {
+      const response = await fetch(`${API_BASE}/admin/simulation/orders`);
+      if (!response.ok) throw new Error('Failed to fetch simulation orders');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching simulation orders:', error);
+      return { orders: [] };
     }
   },
 };

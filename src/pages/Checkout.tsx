@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { useToast } from '../hooks/use-toast';
 import { CheckCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import { useState } from 'react';
@@ -23,6 +24,8 @@ const Checkout: React.FC = () => {
     city: user?.city || '',
     state: user?.state || '',
     zipCode: user?.postal_code || '',
+    paymentMethod: 'card',
+    paymentScenario: 'success' as 'success' | 'pending' | 'failed',
     cardNumber: '',
     cvv: '',
     expiryDate: ''
@@ -81,7 +84,11 @@ const Checkout: React.FC = () => {
           size: item.size,
           color: item.color
         })),
-        subtotal
+        subtotal,
+        {
+          paymentMethod: formData.paymentMethod,
+          paymentScenario: formData.paymentScenario,
+        }
       );
 
       clearCart();
@@ -187,6 +194,43 @@ const Checkout: React.FC = () => {
             {/* Payment Information */}
             <div className="space-y-4">
               <h3 className="font-semibold">Payment Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Payment Method</Label>
+                  <Select
+                    value={formData.paymentMethod}
+                    onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="card">Card</SelectItem>
+                      <SelectItem value="upi">UPI</SelectItem>
+                      <SelectItem value="wallet">Wallet</SelectItem>
+                      <SelectItem value="cod">Cash on Delivery</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Simulation Scenario</Label>
+                  <Select
+                    value={formData.paymentScenario}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, paymentScenario: value as 'success' | 'pending' | 'failed' })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select payment scenario" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="success">Success</SelectItem>
+                      <SelectItem value="pending">Pending then Success</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div>
                 <Label>Card Number</Label>
                 <Input 

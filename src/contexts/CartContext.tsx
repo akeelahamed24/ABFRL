@@ -123,7 +123,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Call API if user is logged in
       if (userId) {
-        await cartAPI.addToCart(userId, product.id?.toString() || '', quantity);
+        await cartAPI.addToCart(userId, product.id?.toString() || '', quantity, size, color);
       }
     } catch (error) {
       console.error('Failed to add item to cart:', error);
@@ -171,7 +171,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Call API if user is logged in
       if (userId && itemToUpdate) {
         await cartAPI.removeFromCart(userId, itemToUpdate.product.id?.toString() || '');
-        await cartAPI.addToCart(userId, itemToUpdate.product.id?.toString() || '', quantity);
+        await cartAPI.addToCart(
+          userId,
+          itemToUpdate.product.id?.toString() || '',
+          quantity,
+          itemToUpdate.size,
+          itemToUpdate.color
+        );
       }
     } catch (error) {
       console.error('Failed to update cart quantity:', error);

@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
-import { User, Mail, Phone, MapPin, ArrowLeft, Save, Edit2 } from 'lucide-react';
+import { User, ArrowLeft, Save, Edit2, MessageCircleMore, Link2, Unlink } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 const Profile = () => {
-  const { user, isAuthenticated, updateProfile, isLoading } = useAuth();
+  const { user, isAuthenticated, updateProfile, updateWhatsAppConnection, isLoading } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     first_name: user?.first_name || '',
@@ -25,6 +26,8 @@ const Profile = () => {
     country: user?.country || '',
     postal_code: user?.postal_code || '',
   });
+  const [whatsAppPhone, setWhatsAppPhone] = useState(user?.whatsapp_connection?.phone_number || user?.phone || '');
+  const [whatsAppOptIn, setWhatsAppOptIn] = useState(user?.whatsapp_connection?.opt_in ?? true);
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
@@ -51,6 +54,30 @@ const Profile = () => {
     }
 
     toast({ title: "Update failed", description: "Unable to save your profile.", variant: "destructive" });
+  };
+
+  const handleWhatsAppConnection = async (connected: boolean) => {
+    const success = await updateWhatsAppConnection({
+      phone_number: whatsAppPhone,
+      connected,
+      opt_in: whatsAppOptIn,
+    });
+
+    if (success) {
+      toast({
+        title: connected ? 'WhatsApp connected' : 'WhatsApp disconnected',
+        description: connected
+          ? 'Simulated OpenClaw notifications are now enabled for your profile.'
+          : 'WhatsApp notifications have been turned off.',
+      });
+      return;
+    }
+
+    toast({
+      title: 'WhatsApp update failed',
+      description: 'We could not update your WhatsApp simulation settings.',
+      variant: 'destructive',
+    });
   };
 
   return (
@@ -136,6 +163,60 @@ const Profile = () => {
             <div className="space-y-2">
               <Label>Country</Label>
               <Input name="country" value={formData.country} onChange={handleChange} disabled={!isEditing} className={cn(!isEditing && "bg-muted")} />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-lg border border-border overflow-hidden mt-8">
+          <div className="p-6 md:p-8 space-y-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="font-serif text-2xl font-bold flex items-center gap-2">
+                  <MessageCircleMore className="h-5 w-5 text-brand-orange" />
+                  WhatsApp Simulation
+                </h2>
+                <p className="text-muted-foreground mt-1">
+                  Connect your profile to simulated OpenClaw notifications for order, payment, and delivery updates.
+                </p>
+              </div>
+              <div className={cn(
+                'rounded-full px-3 py-1 text-xs font-medium',
+                user?.whatsapp_connection?.status === 'connected' ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'
+              )}>
+                {user?.whatsapp_connection?.status === 'connected' ? 'Connected' : 'Disconnected'}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>WhatsApp Number</Label>
+              <Input
+                value={whatsAppPhone}
+                onChange={(e) => setWhatsAppPhone(e.target.value)}
+                placeholder="+91 98765 43210"
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-md border border-border p-4">
+              <div>
+                <Label className="block mb-1">Receive automated WhatsApp updates</Label>
+                <p className="text-sm text-muted-foreground">
+                  Enables simulated messages for order confirmation, payment status, shipping, out-for-delivery, and delivery completion.
+                </p>
+              </div>
+              <Switch checked={whatsAppOptIn} onCheckedChange={setWhatsAppOptIn} />
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={() => void handleWhatsAppConnection(true)}
+                disabled={isLoading || !whatsAppPhone.trim()}
+                className="bg-gradient-to-r from-brand-red via-brand-orange to-gold text-white"
+              >
+                <Link2 className="h-4 w-4 mr-2" /> Connect via OpenClaw
+              </Button>
+              <Button variant="outline" onClick={() => void handleWhatsAppConnection(false)} disabled={isLoading}>
+                <Unlink className="h-4 w-4 mr-2" /> Disconnect
+              </Button>
             </div>
           </div>
         </div>

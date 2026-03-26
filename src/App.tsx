@@ -16,6 +16,7 @@ import Checkout from "./pages/Checkout";
 import Cart from "./pages/Cart";
 import Orders from "./pages/Orders";
 import VoiceAgent from "./pages/VoiceAgent";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/orders" element={<Orders />} />
                 <Route path="/voice-agent" element={<VoiceAgent />} />
+                <Route path="/admin" element={<Admin />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>

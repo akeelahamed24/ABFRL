@@ -9,6 +9,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   signup: (email: string, password: string, firstName: string, lastName: string) => Promise<boolean>;
   updateProfile: (updates: Partial<User>) => Promise<boolean>;
+  updateWhatsAppConnection: (payload: { phone_number?: string | null; connected: boolean; opt_in: boolean }) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -32,6 +33,7 @@ const mapApiUserToUser = (apiUser: any): User => ({
   loyalty_score: apiUser.loyalty_score || 0,
   is_active: apiUser.is_active ?? true,
   is_admin: apiUser.is_admin ?? false,
+  whatsapp_connection: apiUser.whatsapp_connection || null,
   created_at: apiUser.created_at || new Date().toISOString(),
   updated_at: apiUser.updated_at || new Date().toISOString(),
 });
@@ -132,6 +134,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
+  const updateWhatsAppConnection = useCallback(async (
+    payload: { phone_number?: string | null; connected: boolean; opt_in: boolean }
+  ): Promise<boolean> => {
+    if (!user?.id) {
+      return false;
+    }
+
+    setIsLoading(true);
+    try {
+      const updatedUser = await authAPI.updateWhatsApp(user.id, payload);
+      if (!updatedUser) {
+        return false;
+      }
+
+      const nextUser = mapApiUserToUser(updatedUser);
+      setUser(nextUser);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+      return true;
+    } catch (error) {
+      console.error('Update WhatsApp connection error:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
@@ -147,6 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         signup,
         updateProfile,
+        updateWhatsAppConnection,
         logout,
       }}
     >

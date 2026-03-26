@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { productAPI } from '@/services/api';
+import { activityAPI, productAPI } from '@/services/api';
 import { Product } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +17,7 @@ const ProductDetail = () => {
   const { id } = useParams();
   const { addItem } = useCart();
   const { isInWishlist, toggleItem } = useWishlist();
+  const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
@@ -63,6 +65,23 @@ const ProductDetail = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id || !product?.id) {
+      return;
+    }
+
+    void activityAPI.record(user.id, {
+      activity_type: 'product_view',
+      product_id: product.id,
+      metadata: {
+        product_name: product.product_name,
+        dress_category: product.dress_category,
+      },
+    }).catch((error) => {
+      console.error('Failed to record product view:', error);
+    });
+  }, [isAuthenticated, product?.id, product?.product_name, product?.dress_category, user?.id]);
 
   if (loading) {
     return (

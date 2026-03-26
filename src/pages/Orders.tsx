@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Package, ArrowLeft, Calendar, DollarSign, CheckCircle, Clock } from 'lucide-react';
+import { Package, ArrowLeft, Calendar, DollarSign, CheckCircle, Clock, CreditCard, Truck } from 'lucide-react';
 import { useOrders } from '../hooks/useApi';
 import { Badge } from '../components/ui/badge';
 import { Order } from '../types';
@@ -13,7 +13,7 @@ const Orders: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const { orders, loading, error } = useOrders(user?.id);
 
-  const getOrderStatus = (order: Order) => order.order_status || order.status || 'pending';
+  const getOrderStatus = (order: Order) => order.order_status || order.status || 'order_placed';
   const getOrderDate = (order: Order) => order.created_at || '';
   const getOrderTotal = (order: Order) =>
     order.total_amount ??
@@ -58,11 +58,12 @@ const Orders: React.FC = () => {
               const status = getOrderStatus(order);
               const orderDate = getOrderDate(order);
               const totalAmount = getOrderTotal(order);
+              const paymentStatus = order.payments?.[order.payments.length - 1]?.status || order.payment_status || 'initiated';
 
               return (
               <Card key={order.id || order.order_number} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
                       <CardTitle className="text-lg">Order #{order.order_number}</CardTitle>
                       <CardDescription className="flex items-center gap-2 mt-2">
@@ -74,11 +75,17 @@ const Orders: React.FC = () => {
                         })}
                       </CardDescription>
                     </div>
-                    <Badge variant={status === 'delivered' ? 'default' : 'secondary'}>
-                      {status === 'delivered' && <CheckCircle className="h-3 w-3 mr-1" />}
-                      {status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </Badge>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant={status === 'delivered' ? 'default' : 'secondary'}>
+                        {status === 'delivered' && <CheckCircle className="h-3 w-3 mr-1" />}
+                        {(status === 'order_placed' || status === 'payment_failed') && <Clock className="h-3 w-3 mr-1" />}
+                        {status.replace(/_/g, ' ')}
+                      </Badge>
+                      <Badge variant={paymentStatus === 'success' ? 'default' : paymentStatus === 'failed' ? 'destructive' : 'secondary'}>
+                        <CreditCard className="h-3 w-3 mr-1" />
+                        {paymentStatus}
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -107,6 +114,28 @@ const Orders: React.FC = () => {
                       </div>
                       <span className="text-xl font-bold text-primary">${totalAmount.toFixed(2)}</span>
                     </div>
+
+                    {!!order.timeline?.length && (
+                      <div className="border-t pt-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Truck className="h-4 w-4 text-primary" />
+                          <h4 className="font-semibold">Simulation Timeline</h4>
+                        </div>
+                        <div className="space-y-3">
+                          {order.timeline.map((entry, timelineIndex) => (
+                            <div key={`${order.order_number}-${timelineIndex}`} className="rounded-md border border-border p-3">
+                              <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                <span className="font-medium">{entry.label}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(entry.created_at).toLocaleString()}
+                                </span>
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">{entry.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
