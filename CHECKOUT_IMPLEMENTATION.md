@@ -194,7 +194,7 @@ python test_checkout.py
 
 **Prerequisites:**
 
-- Backend server running on localhost:8000
+- Backend server running on https://backend-finalyear-project.onrender.com
 - Database with sample products
 - Network connectivity
 

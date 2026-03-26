@@ -9,7 +9,7 @@ import json
 import time
 
 # Backend API base URL
-BASE_URL = "http://localhost:8000"
+BASE_URL = "https://backend-finalyear-project.onrender.com"
 
 def add_product(product_data):
     """Add a single product to the database"""
@@ -237,7 +237,7 @@ def main():
         time.sleep(0.1)  # Small delay between requests
     
     print(f"\n🎉 Done! Added {success_count}/{len(products)} products to the database.")
-    print(f"🌐 Visit http://localhost:8080/products to see your products!")
+    print(f"🌐 Visit https://backend-finalyear-project.onrender.com/products to see your products!")
     
     if success_count == 0:
         print("\n⚠️  No products were added. Make sure your backend server is running on port 8000.")
