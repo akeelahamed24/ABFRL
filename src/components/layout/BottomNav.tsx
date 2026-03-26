@@ -11,7 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { categories } from '@/data/mockData';
+import { useCatalogMeta } from '@/hooks/useApi';
+import { groupCatalogCategories } from '@/lib/catalog';
 
 export const BottomNav = () => {
   const location = useLocation();
@@ -19,6 +20,8 @@ export const BottomNav = () => {
   const { totalItems, openCart } = useCart();
   const { isAuthenticated } = useAuth();
   const { items: wishlistItems } = useWishlist();
+  const { categories: catalogCategories } = useCatalogMeta();
+  const categories = groupCatalogCategories(catalogCategories);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -190,17 +193,19 @@ export const BottomNav = () => {
                   {category.name}
                 </button>
                 {/* Subcategories */}
-                <div className="ml-4 space-y-2 mt-2">
-                  {category.subcategories.map((sub) => (
-                    <button
-                      key={sub.id}
-                      onClick={() => handleCategorySelect(sub.id)}
-                      className="w-full text-left px-4 py-2 rounded-lg hover:bg-secondary/50 transition-colors text-sm text-muted-foreground hover:text-foreground"
-                    >
-                      {sub.name}
-                    </button>
-                  ))}
-                </div>
+                {category.subcategories.length > 0 && (
+                  <div className="ml-4 space-y-2 mt-2">
+                    {category.subcategories.map((sub) => (
+                      <button
+                        key={sub.id}
+                        onClick={() => handleCategorySelect(sub.id)}
+                        className="w-full text-left px-4 py-2 rounded-lg hover:bg-secondary/50 transition-colors text-sm text-muted-foreground hover:text-foreground"
+                      >
+                        {sub.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

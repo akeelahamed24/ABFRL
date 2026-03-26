@@ -12,7 +12,7 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 const Profile = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, updateProfile, isLoading } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     first_name: user?.first_name || '',
@@ -34,9 +34,23 @@ const Profile = () => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSave = () => {
-    setIsEditing(false);
-    toast({ title: "Profile updated", description: "Your profile has been saved locally." });
+  const handleSave = async () => {
+    const success = await updateProfile({
+      phone: formData.phone,
+      address: formData.address,
+      city: formData.city,
+      state: formData.state,
+      country: formData.country,
+      postal_code: formData.postal_code,
+    });
+
+    if (success) {
+      setIsEditing(false);
+      toast({ title: "Profile updated", description: "Your profile has been saved." });
+      return;
+    }
+
+    toast({ title: "Update failed", description: "Unable to save your profile.", variant: "destructive" });
   };
 
   return (
@@ -58,7 +72,7 @@ const Profile = () => {
           ) : (
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
-              <Button onClick={handleSave} className="bg-gradient-to-r from-brand-red via-brand-orange to-gold text-white">
+              <Button onClick={handleSave} disabled={isLoading} className="bg-gradient-to-r from-brand-red via-brand-orange to-gold text-white">
                 <Save className="h-4 w-4 mr-2" /> Save
               </Button>
             </div>
@@ -99,6 +113,29 @@ const Profile = () => {
                 <Label>Phone</Label>
                 <Input name="phone" value={formData.phone} onChange={handleChange} disabled={!isEditing} className={cn(!isEditing && "bg-muted")} />
               </div>
+            </div>
+            <Separator />
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Textarea name="address" value={formData.address} onChange={handleChange} disabled={!isEditing} className={cn(!isEditing && "bg-muted")} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>City</Label>
+                <Input name="city" value={formData.city} onChange={handleChange} disabled={!isEditing} className={cn(!isEditing && "bg-muted")} />
+              </div>
+              <div className="space-y-2">
+                <Label>State</Label>
+                <Input name="state" value={formData.state} onChange={handleChange} disabled={!isEditing} className={cn(!isEditing && "bg-muted")} />
+              </div>
+              <div className="space-y-2">
+                <Label>Postal Code</Label>
+                <Input name="postal_code" value={formData.postal_code} onChange={handleChange} disabled={!isEditing} className={cn(!isEditing && "bg-muted")} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Country</Label>
+              <Input name="country" value={formData.country} onChange={handleChange} disabled={!isEditing} className={cn(!isEditing && "bg-muted")} />
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 export interface User {
-  id: number;
+  id: string;
   email: string;
   password_hash: string;
   first_name: string | null;
@@ -36,7 +36,7 @@ export interface Product {
 
 export interface CartItem {
   id: number;
-  user_id: number;
+  user_id: string;
   product_id: number;
   quantity: number;
   size: string;
@@ -46,25 +46,32 @@ export interface CartItem {
 }
 
 export interface Order {
-  id: number;
+  id?: string;
   order_number: string;
-  user_id: number;
-  total_amount: number;
-  tax_amount: number;
-  shipping_amount: number;
-  discount_amount: number;
-  final_amount: number;
-  payment_status: 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
-  payment_method: string | null;
-  transaction_id: string | null;
-  shipping_address: string;
-  billing_address: string;
-  order_status: 'processing' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' | 'returned';
-  tracking_number: string | null;
-  notes: string | null;
+  user_id: string;
+  total_amount?: number;
+  tax_amount?: number;
+  shipping_amount?: number;
+  discount_amount?: number;
+  final_amount?: number;
+  payment_status?: 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
+  payment_method?: string | null;
+  transaction_id?: string | null;
+  shipping_address?: string;
+  billing_address?: string;
+  order_status?: 'pending' | 'processing' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' | 'returned';
+  status?: string;
+  tracking_number?: string | null;
+  notes?: string | null;
   created_at: string;
-  updated_at: string;
-  order_items: OrderItem[];
+  updated_at?: string;
+  items?: Array<{
+    product_id: number;
+    product_name?: string;
+    quantity: number;
+    price?: number;
+  }>;
+  order_items?: OrderItem[];
 }
 
 export interface OrderItem {
@@ -76,6 +83,34 @@ export interface OrderItem {
   unit_price: number;
   total_price: number;
   created_at: string;
+}
+
+export interface CatalogCategoryMeta {
+  id: string;
+  name: string;
+  count: number;
+  image_url?: string | null;
+}
+
+export interface CatalogOccasionMeta {
+  id: string;
+  name: string;
+  count: number;
+}
+
+export interface CategoryOption {
+  id: string;
+  name: string;
+  count?: number;
+  image_url?: string | null;
+}
+
+export interface CategoryGroup {
+  id: string;
+  name: string;
+  count?: number;
+  image_url?: string | null;
+  subcategories: CategoryOption[];
 }
 
 export type DressCategory = 

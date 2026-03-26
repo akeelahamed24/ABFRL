@@ -19,10 +19,10 @@ const Checkout: React.FC = () => {
   const [isComplete, setIsComplete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
+    address: user?.address || '',
+    city: user?.city || '',
+    state: user?.state || '',
+    zipCode: user?.postal_code || '',
     cardNumber: '',
     cvv: '',
     expiryDate: ''
@@ -135,7 +135,7 @@ const Checkout: React.FC = () => {
             {/* Order Summary */}
             <div className="bg-muted p-4 rounded-lg">
               <h3 className="font-semibold mb-3">Order Summary</h3>
-              <div className="space-y-2 text-sm">
+            <div className="space-y-2 text-sm">
                 {items.map((item) => (
                   <div key={item.id} className="flex justify-between">
                     <span>{item.product.product_name} x{item.quantity}</span>
@@ -168,19 +168,19 @@ const Checkout: React.FC = () => {
                 <div>
                   <Label>State</Label>
                   <Input 
-                    placeholder="NY" 
+                    placeholder="Maharashtra" 
                     value={formData.state}
                     onChange={(e) => setFormData({...formData, state: e.target.value})}
                   />
                 </div>
               </div>
               <div>
-                <Label>ZIP Code</Label>
-                <Input 
-                  placeholder="10001" 
-                  value={formData.zipCode}
-                  onChange={(e) => setFormData({...formData, zipCode: e.target.value})}
-                />
+                  <Label>ZIP Code</Label>
+                  <Input 
+                    placeholder="400001" 
+                    value={formData.zipCode}
+                    onChange={(e) => setFormData({...formData, zipCode: e.target.value})}
+                  />
               </div>
             </div>
 

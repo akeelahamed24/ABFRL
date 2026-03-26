@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { productAPI, orderAPI } from '@/services/api';
+import { FetchProductsParams, productAPI, orderAPI } from '@/services/api';
+import { CatalogCategoryMeta, CatalogOccasionMeta } from '@/types';
 
 // ==================== Product Hook ====================
 
-export const useProducts = (category?: string) => {
+export const useProducts = (params?: FetchProductsParams) => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -12,20 +13,43 @@ export const useProducts = (category?: string) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await productAPI.getProducts({ category });
+      const data = await productAPI.getProducts(params);
       setProducts(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch products');
     } finally {
       setLoading(false);
     }
-  }, [category]);
+  }, [params]);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
   return { products, loading, error, refetch: fetchProducts };
+};
+
+export const useCatalogMeta = () => {
+  const [categories, setCategories] = useState<CatalogCategoryMeta[]>([]);
+  const [occasions, setOccasions] = useState<CatalogOccasionMeta[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMeta = async () => {
+      try {
+        setLoading(true);
+        const data = await productAPI.getCatalogMeta();
+        setCategories(data.categories || []);
+        setOccasions(data.occasions || []);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMeta();
+  }, []);
+
+  return { categories, occasions, loading };
 };
 
 // ==================== Orders Hook ====================

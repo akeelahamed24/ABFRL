@@ -28,7 +28,7 @@ const Wishlist = () => {
   };
 
   const handleRemove = (product: Product) => {
-    removeItem(product.id);
+    void removeItem(product.id);
     toast({
       title: "Removed from wishlist",
       description: `${product.product_name} has been removed from your wishlist.`,
@@ -36,7 +36,7 @@ const Wishlist = () => {
   };
 
   const handleToggleWishlist = (product: Product) => {
-    toggleItem(product);
+    void toggleItem(product);
     const wasInWishlist = isInWishlist(product.id);
     toast({
       title: wasInWishlist ? "Removed from wishlist" : "Added to wishlist",

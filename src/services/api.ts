@@ -1,10 +1,56 @@
 // API service for communicating with backend
+import { CatalogCategoryMeta, CatalogOccasionMeta } from '@/types';
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // ==================== Products ====================
 
 export interface FetchProductsParams {
   category?: string;
+  occasion?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  q?: string;
+}
+
+export interface SalesChatRequest {
+  message: string;
+  prompt?: string;
+  user_id?: string;
+  session_id?: string;
+  channel?: 'web' | 'mobile' | 'whatsapp' | 'telegram' | 'kiosk' | 'voice';
+}
+
+export interface SalesChatResponse {
+  reply: string;
+  session_id?: string | null;
+  requires_action: boolean;
+  action_type?: string | null;
+  action_data?: Record<string, any> | null;
+}
+
+export interface CatalogMetaResponse {
+  categories: CatalogCategoryMeta[];
+  occasions: CatalogOccasionMeta[];
+}
+
+export interface ChatHistoryMessage {
+  session_id: string;
+  message_type: string;
+  content: string;
+  agent_type?: string | null;
+  created_at: string;
+}
+
+export interface ChatSessionSummary {
+  session_id: string;
+  channel: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+  title: string;
+  last_message_preview: string;
 }
 
 export const productAPI = {
@@ -14,6 +60,18 @@ export const productAPI = {
       const url = new URL(`${API_BASE}/products`);
       if (params?.category) {
         url.searchParams.append('category', params.category);
+      }
+      if (params?.occasion) {
+        url.searchParams.append('occasion', params.occasion);
+      }
+      if (params?.minPrice !== undefined) {
+        url.searchParams.append('min_price', String(params.minPrice));
+      }
+      if (params?.maxPrice !== undefined) {
+        url.searchParams.append('max_price', String(params.maxPrice));
+      }
+      if (params?.q) {
+        url.searchParams.append('q', params.q);
       }
       
       const response = await fetch(url.toString());
@@ -28,7 +86,7 @@ export const productAPI = {
   },
 
   // Get single product by ID
-  async getProduct(productId: number) {
+  async getProduct(productId: number | string) {
     try {
       const response = await fetch(`${API_BASE}/products/${productId}`);
       if (!response.ok) throw new Error('Product not found');
@@ -42,13 +100,21 @@ export const productAPI = {
   // Search products
   async searchProducts(query: string) {
     try {
-      const response = await fetch(`${API_BASE}/products/search?q=${encodeURIComponent(query)}`);
-      if (!response.ok) throw new Error('Search failed');
-      const data = await response.json();
-      return data.products || [];
+      return this.getProducts({ q: query });
     } catch (error) {
       console.error('Error searching products:', error);
       return [];
+    }
+  },
+
+  async getCatalogMeta(): Promise<CatalogMetaResponse> {
+    try {
+      const response = await fetch(`${API_BASE}/products/meta`);
+      if (!response.ok) throw new Error('Failed to fetch catalog metadata');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching catalog metadata:', error);
+      return { categories: [], occasions: [] };
     }
   },
 };
@@ -90,10 +156,13 @@ export const orderAPI = {
     payment_method: string;
   }) {
     try {
-      const response = await fetch(`${API_BASE}/orders`, {
+      const searchParams = new URLSearchParams({
+        shipping_address: data.shipping_address,
+        billing_address: data.billing_address,
+        payment_method: data.payment_method,
+      });
+      const response = await fetch(`${API_BASE}/user/${data.user_id}/checkout?${searchParams.toString()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
       });
       if (!response.ok) throw new Error('Failed to create order');
       return await response.json();
@@ -168,14 +237,15 @@ export const cartAPI = {
     totalAmount: number
   ) {
     try {
-      const response = await fetch(`${API_BASE}/user/${userId}/checkout`, {
+      const shippingAddress = `${shippingInfo.address}, ${shippingInfo.city}, ${shippingInfo.state} ${shippingInfo.zipCode}`;
+      const searchParams = new URLSearchParams({
+        shipping_address: shippingAddress,
+        billing_address: shippingAddress,
+        payment_method: 'card',
+      });
+
+      const response = await fetch(`${API_BASE}/user/${userId}/checkout?${searchParams.toString()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items,
-          shipping_address: `${shippingInfo.address}, ${shippingInfo.city}, ${shippingInfo.state} ${shippingInfo.zipCode}`,
-          total_amount: totalAmount,
-        }),
       });
       if (!response.ok) throw new Error('Checkout failed');
       return await response.json();
@@ -248,5 +318,99 @@ export const authAPI = {
       console.error('Error updating profile:', error);
       return null;
     }
+  },
+};
+
+export const wishlistAPI = {
+  async getWishlist(userId: string) {
+    try {
+      const response = await fetch(`${API_BASE}/user/${userId}/wishlist`);
+      if (!response.ok) throw new Error('Failed to fetch wishlist');
+      const data = await response.json();
+      return data.items || [];
+    } catch (error) {
+      console.error('Error fetching wishlist:', error);
+      return [];
+    }
+  },
+
+  async addItem(userId: string, productId: number) {
+    const response = await fetch(`${API_BASE}/user/${userId}/wishlist/${productId}`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to add wishlist item');
+    }
+    return response.json();
+  },
+
+  async removeItem(userId: string, productId: number) {
+    const response = await fetch(`${API_BASE}/user/${userId}/wishlist/${productId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to remove wishlist item');
+    }
+    return response.json();
+  },
+};
+
+export const chatAPI = {
+  async getSessionMessages(sessionId: string): Promise<ChatHistoryMessage[]> {
+    try {
+      const response = await fetch(`${API_BASE}/chat/${sessionId}/messages`);
+      if (!response.ok) throw new Error('Failed to fetch chat history');
+      const data = await response.json();
+      return data.messages || [];
+    } catch (error) {
+      console.error('Error fetching chat history:', error);
+      return [];
+    }
+  },
+
+  async getUserSessions(userId: string): Promise<ChatSessionSummary[]> {
+    try {
+      const response = await fetch(`${API_BASE}/user/${userId}/chat/sessions`);
+      if (!response.ok) throw new Error('Failed to fetch chat sessions');
+      const data = await response.json();
+      return data.sessions || [];
+    } catch (error) {
+      console.error('Error fetching chat sessions:', error);
+      return [];
+    }
+  },
+};
+
+export const salesAPI = {
+  async sendMessage(payload: SalesChatRequest): Promise<SalesChatResponse> {
+    const requestBody = {
+      channel: 'web',
+      prompt: payload.message,
+      ...payload,
+    };
+
+    let response = await fetch(`${API_BASE}/sales`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (response.status === 422) {
+      response = await fetch(`${API_BASE}/sales`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: requestBody.channel,
+          message: requestBody.message,
+          prompt: requestBody.prompt,
+        }),
+      });
+    }
+
+    if (!response.ok) {
+      throw new Error('Failed to reach sales assistant');
+    }
+
+    return response.json();
   },
 };
