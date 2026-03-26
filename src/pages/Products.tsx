@@ -10,7 +10,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
-import { mockProducts } from '@/data/mockData';
+import { Badge } from '@/components/ui/badge';
+import { useProducts } from '@/hooks/useApi';
 
 const Products = () => {
   const [searchParams] = useSearchParams();
@@ -21,6 +22,9 @@ const Products = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(categoryParam);
   const [selectedOccasions, setSelectedOccasions] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
+
+  // Fetch products from database - NOT from mockData
+  const { products: dbProducts, loading, error } = useProducts();
 
   // Define categories for the frontend
   const categories = [
@@ -72,26 +76,28 @@ const Products = () => {
   };
 
   const filteredProducts = useMemo(() => {
-    let result = [...mockProducts];
+    if (!dbProducts || dbProducts.length === 0) return [];
+    
+    let result = [...dbProducts];
     
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(p => 
-        p.product_name.toLowerCase().includes(query) ||
+        p.product_name?.toLowerCase().includes(query) ||
         p.description?.toLowerCase().includes(query) ||
-        p.dress_category.toLowerCase().includes(query)
+        p.dress_category?.toLowerCase().includes(query)
       );
     }
     
     // Category filter
     if (selectedCategory) {
       if (selectedCategory === 'women') {
-        result = result.filter(p => p.dress_category.startsWith('women-'));
+        result = result.filter(p => p.dress_category?.startsWith('women-'));
       } else if (selectedCategory === 'men') {
-        result = result.filter(p => p.dress_category.startsWith('men-'));
+        result = result.filter(p => p.dress_category?.startsWith('men-'));
       } else if (selectedCategory === 'kids') {
-        result = result.filter(p => p.dress_category.startsWith('kids-'));
+        result = result.filter(p => p.dress_category?.startsWith('kids-'));
       } else {
         result = result.filter(p => p.dress_category === selectedCategory);
       }
@@ -124,7 +130,7 @@ const Products = () => {
     }
     
     return result;
-  }, [searchQuery, selectedCategory, selectedOccasions, priceRange, sortBy]);
+  }, [dbProducts, searchQuery, selectedCategory, selectedOccasions, priceRange, sortBy]);
 
   const getCategoryTitle = () => {
     if (searchQuery) return `Search: "${searchQuery}"`;
@@ -370,7 +376,26 @@ const Products = () => {
             
             {/* Main Content */}
             <div className="flex-1">
-              {filteredProducts.length > 0 ? (
+              {/* Loading State */}
+              {loading ? (
+                <div className="text-center py-16">
+                  <div className="mb-6">
+                    <div className="h-16 w-16 mx-auto mb-4 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    <h3 className="text-xl font-semibold mb-2">Loading products...</h3>
+                  </div>
+                </div>
+              ) : error ? (
+                <div className="text-center py-16">
+                  <div className="mb-6">
+                    <Package className="h-16 w-16 text-destructive/30 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold mb-2">Failed to load products</h3>
+                    <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                      {error}
+                    </p>
+                  </div>
+                  <Button onClick={() => window.location.reload()}>Retry</Button>
+                </div>
+              ) : filteredProducts.length > 0 ? (
                 <>
                   {/* Mobile Active Filters */}
                   <div className="lg:hidden mb-6">

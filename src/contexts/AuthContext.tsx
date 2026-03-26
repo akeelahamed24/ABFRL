@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { User } from '@/types';
-import { mockUsers } from '@/data/mockData';
 
 interface AuthContextType {
   user: User | null;
@@ -14,6 +13,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'auth_user';
+const TOKEN_KEY = 'auth_token';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -22,12 +23,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Load user from localStorage on mount
   useEffect(() => {
     const savedUser = localStorage.getItem(STORAGE_KEY);
-    if (savedUser) {
+    const savedToken = localStorage.getItem(TOKEN_KEY);
+    
+    if (savedUser && savedToken) {
       try {
         setUser(JSON.parse(savedUser));
       } catch (error) {
         console.error('Failed to parse saved user:', error);
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(TOKEN_KEY);
       }
     }
     setIsLoading(false);
@@ -36,41 +40,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const response = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Login failed:', response.statusText);
+        return false;
+      }
+
+      const data = await response.json();
       
-      // Find user in mock data (in real app, this would be API call)
-      const foundUser = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-      
-      if (foundUser) {
-        setUser(foundUser);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(foundUser));
+      if (data.success && data.user) {
+        // Convert API response to User type
+        const userData: User = {
+          id: parseInt(data.user.id) || Date.now(),
+          email: data.user.email,
+          password_hash: '',
+          first_name: data.user.first_name,
+          last_name: data.user.last_name,
+          phone: data.user.phone || null,
+          address: data.user.address || null,
+          city: data.user.city || null,
+          state: data.user.state || null,
+          country: data.user.country || null,
+          postal_code: data.user.postal_code || null,
+          loyalty_score: data.user.loyalty_score || 0,
+          is_active: data.user.is_active || true,
+          is_admin: data.user.is_admin || false,
+          created_at: data.user.created_at || new Date().toISOString(),
+          updated_at: data.user.updated_at || new Date().toISOString(),
+        };
+
+        setUser(userData);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+        localStorage.setItem(TOKEN_KEY, data.token);
         return true;
       }
-      
-      // If not found, create a demo user for any login
-      const demoUser: User = {
-        id: Date.now(),
-        email: email,
-        password_hash: '',
-        first_name: email.split('@')[0],
-        last_name: '',
-        phone: null,
-        address: null,
-        city: null,
-        state: null,
-        country: null,
-        postal_code: null,
-        loyalty_score: 100,
-        is_active: true,
-        is_admin: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      
-      setUser(demoUser);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(demoUser));
-      return true;
+
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -84,31 +102,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const newUser: User = {
-        id: Date.now(),
-        email,
-        password_hash: '',
-        first_name: firstName,
-        last_name: lastName,
-        phone: null,
-        address: null,
-        city: null,
-        state: null,
-        country: null,
-        postal_code: null,
-        loyalty_score: 0,
-        is_active: true,
-        is_admin: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      
-      setUser(newUser);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
-      return true;
+      const response = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          first_name: firstName,
+          last_name: lastName,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Signup failed:', response.statusText);
+        return false;
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.user) {
+        // Convert API response to User type
+        const userData: User = {
+          id: parseInt(data.user.id) || Date.now(),
+          email: data.user.email,
+          password_hash: '',
+          first_name: data.user.first_name,
+          last_name: data.user.last_name,
+          phone: data.user.phone || null,
+          address: data.user.address || null,
+          city: data.user.city || null,
+          state: data.user.state || null,
+          country: data.user.country || null,
+          postal_code: data.user.postal_code || null,
+          loyalty_score: data.user.loyalty_score || 0,
+          is_active: data.user.is_active || true,
+          is_admin: data.user.is_admin || false,
+          created_at: data.user.created_at || new Date().toISOString(),
+          updated_at: data.user.updated_at || new Date().toISOString(),
+        };
+
+        setUser(userData);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+        localStorage.setItem(TOKEN_KEY, data.token);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Signup error:', error);
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -117,6 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(TOKEN_KEY);
   }, []);
 
   return (
@@ -137,7 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
