@@ -6,11 +6,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Package, ArrowLeft, Calendar, DollarSign, CheckCircle, Clock } from 'lucide-react';
 import { useOrders } from '../hooks/useApi';
 import { Badge } from '../components/ui/badge';
+import { Order } from '../types';
 
 const Orders: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const { orders, loading, error } = useOrders(user?.id);
+
+  const getOrderStatus = (order: Order) => order.order_status || order.status || 'pending';
+  const getOrderDate = (order: Order) => order.created_at || '';
+  const getOrderTotal = (order: Order) =>
+    order.total_amount ??
+    order.final_amount ??
+    order.items?.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0) ??
+    0;
 
   if (!isAuthenticated) {
     navigate('/auth');
@@ -45,25 +54,30 @@ const Orders: React.FC = () => {
           </Card>
         ) : orders && orders.length > 0 ? (
           <div className="space-y-4">
-            {orders.map((order) => (
-              <Card key={order._id} className="hover:shadow-lg transition-shadow">
+            {orders.map((order: Order) => {
+              const status = getOrderStatus(order);
+              const orderDate = getOrderDate(order);
+              const totalAmount = getOrderTotal(order);
+
+              return (
+              <Card key={order.id || order.order_number} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>
                       <CardTitle className="text-lg">Order #{order.order_number}</CardTitle>
                       <CardDescription className="flex items-center gap-2 mt-2">
                         <Calendar className="h-4 w-4" />
-                        {new Date(order.order_date).toLocaleDateString('en-US', {
+                        {new Date(orderDate).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'long',
                           day: 'numeric'
                         })}
                       </CardDescription>
                     </div>
-                    <Badge variant={order.order_status === 'delivered' ? 'default' : 'secondary'}>
-                      {order.order_status === 'delivered' && <CheckCircle className="h-3 w-3 mr-1" />}
-                      {order.order_status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
-                      {order.order_status?.charAt(0).toUpperCase() + order.order_status?.slice(1)}
+                    <Badge variant={status === 'delivered' ? 'default' : 'secondary'}>
+                      {status === 'delivered' && <CheckCircle className="h-3 w-3 mr-1" />}
+                      {status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -76,10 +90,10 @@ const Orders: React.FC = () => {
                         {order.items?.map((item, idx) => (
                           <div key={idx} className="flex justify-between text-sm">
                             <div>
-                              <p className="font-medium">{item.product_name}</p>
+                              <p className="font-medium">{item.product_name || `Product #${item.product_id}`}</p>
                               <p className="text-muted-foreground">Qty: {item.quantity}</p>
                             </div>
-                            <p className="font-medium">${(item.price * item.quantity).toFixed(2)}</p>
+                            <p className="font-medium">${(((item.price || 0) * item.quantity)).toFixed(2)}</p>
                           </div>
                         ))}
                       </div>
@@ -91,23 +105,12 @@ const Orders: React.FC = () => {
                         <DollarSign className="h-5 w-5 text-primary" />
                         <span className="font-semibold">Total Amount</span>
                       </div>
-                      <span className="text-xl font-bold text-primary">${order.total_amount?.toFixed(2) || '0.00'}</span>
-                    </div>
-
-                    {/* View Details Button */}
-                    <div className="pt-2">
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => navigate(`/orders/${order.order_number}`)}
-                      >
-                        View Details
-                      </Button>
+                      <span className="text-xl font-bold text-primary">${totalAmount.toFixed(2)}</span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            )})}
           </div>
         ) : (
           <Card>

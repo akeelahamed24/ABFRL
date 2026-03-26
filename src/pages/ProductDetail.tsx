@@ -164,7 +164,7 @@ const ProductDetail = () => {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {sizes.map((size) => (
-                    <button key={size} onClick={() => setSelectedSize(size)} className={cn('w-12 h-12 text-sm border rounded-sm transition-colors', selectedColor === size ? 'border-gold bg-gold/10' : 'border-border hover:border-foreground')}>
+                    <button key={size} onClick={() => setSelectedSize(size)} className={cn('w-12 h-12 text-sm border rounded-sm transition-colors', selectedSize === size ? 'border-gold bg-gold/10' : 'border-border hover:border-foreground')}>
                       {size}
                     </button>
                   ))}
@@ -180,7 +180,7 @@ const ProductDetail = () => {
                 <Button variant="ghost" size="icon" onClick={() => setQuantity(quantity + 1)}><Plus className="h-4 w-4" /></Button>
               </div>
               <Button className="flex-1 bg-primary hover:bg-primary/90" size="lg" onClick={handleAddToCart}>Add to Bag</Button>
-              <Button variant="outline" size="icon" className="h-12 w-12" onClick={() => toggleItem(product)}>
+              <Button variant="outline" size="icon" className="h-12 w-12" onClick={() => void toggleItem(product)}>
                 <Heart className={cn('h-5 w-5', isWishlisted && 'fill-gold text-gold')} />
               </Button>
             </div>

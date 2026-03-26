@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWishlist } from '@/contexts/WishlistContext';
-import { categories } from '@/data/mockData';
+import { useCatalogMeta } from '@/hooks/useApi';
+import { groupCatalogCategories } from '@/lib/catalog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +30,8 @@ export const Header = () => {
   const { totalItems, openCart } = useCart();
   const { isAuthenticated, user, logout } = useAuth();
   const { items: wishlistItems } = useWishlist();
+  const { categories: catalogCategories } = useCatalogMeta();
+  const categories = groupCatalogCategories(catalogCategories);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,12 +83,14 @@ export const Header = () => {
                           </Link>
                         </NavigationMenuLink>
                       ))}
-                      <Link
-                        to={`/products?category=${category.id}`}
-                        className="mt-2 text-sm font-medium text-brand-orange hover:text-brand-orange-dark transition-colors"
-                      >
-                        View All {category.name}
-                      </Link>
+                      {category.subcategories.length > 0 && (
+                        <Link
+                          to={`/products?category=${category.id}`}
+                          className="mt-2 text-sm font-medium text-brand-orange hover:text-brand-orange-dark transition-colors"
+                        >
+                          View All {category.name}
+                        </Link>
+                      )}
                     </div>
                   </NavigationMenuContent>
                 </NavigationMenuItem>

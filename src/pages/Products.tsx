@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useProducts } from '@/hooks/useApi';
+import { useCatalogMeta, useProducts } from '@/hooks/useApi';
+import { groupCatalogCategories, matchesCategorySelection } from '@/lib/catalog';
 
 const Products = () => {
   const [searchParams] = useSearchParams();
@@ -25,48 +26,18 @@ const Products = () => {
 
   // Fetch products from database - NOT from mockData
   const { products: dbProducts, loading, error } = useProducts();
-
-  // Define categories for the frontend
-  const categories = [
-    { 
-      id: 'women', 
-      name: 'Women', 
-      subcategories: [
-        { id: 'women-dresses', name: 'Dresses' },
-        { id: 'women-tops', name: 'Tops & Blouses' },
-        { id: 'women-bottoms', name: 'Bottoms' },
-        { id: 'women-outerwear', name: 'Outerwear' }
-      ]
-    },
-    { 
-      id: 'men', 
-      name: 'Men', 
-      subcategories: [
-        { id: 'men-shirts', name: 'Shirts' },
-        { id: 'men-pants', name: 'Pants' },
-        { id: 'men-suits', name: 'Suits' },
-        { id: 'men-outerwear', name: 'Outerwear' }
-      ]
-    },
-    { 
-      id: 'kids', 
-      name: 'Kids', 
-      subcategories: [
-        { id: 'kids-girls', name: 'Girls' },
-        { id: 'kids-boys', name: 'Boys' },
-        { id: 'kids-baby', name: 'Baby' }
-      ]
-    }
-  ];
-
-  const occasions = [
-    { id: 'wedding', name: 'Wedding' },
-    { id: 'party', name: 'Party' },
-    { id: 'casual', name: 'Casual' },
-    { id: 'formal', name: 'Formal' },
-    { id: 'office', name: 'Office' },
-    { id: 'vacation', name: 'Vacation' }
-  ];
+  const { categories: catalogCategories, occasions: catalogOccasions } = useCatalogMeta();
+  const categories = groupCatalogCategories(catalogCategories);
+  const occasions = catalogOccasions.length > 0
+    ? catalogOccasions
+    : [
+        { id: 'wedding', name: 'Wedding', count: 0 },
+        { id: 'party', name: 'Party', count: 0 },
+        { id: 'casual', name: 'Casual', count: 0 },
+        { id: 'formal', name: 'Formal', count: 0 },
+        { id: 'office', name: 'Office', count: 0 },
+        { id: 'vacation', name: 'Vacation', count: 0 },
+      ];
 
   const clearFilters = () => {
     setSelectedCategory(null);
@@ -92,20 +63,18 @@ const Products = () => {
     
     // Category filter
     if (selectedCategory) {
-      if (selectedCategory === 'women') {
-        result = result.filter(p => p.dress_category?.startsWith('women-'));
-      } else if (selectedCategory === 'men') {
-        result = result.filter(p => p.dress_category?.startsWith('men-'));
-      } else if (selectedCategory === 'kids') {
-        result = result.filter(p => p.dress_category?.startsWith('kids-'));
-      } else {
-        result = result.filter(p => p.dress_category === selectedCategory);
-      }
+      result = result.filter((product) =>
+        matchesCategorySelection(product.dress_category, selectedCategory, categories)
+      );
     }
     
     // Occasion filter
     if (selectedOccasions.length > 0) {
-      result = result.filter(p => p.occasion && selectedOccasions.includes(p.occasion));
+      result = result.filter(
+        (product) =>
+          product.occasion &&
+          selectedOccasions.includes(product.occasion.toLowerCase().replace(/\s+/g, '-'))
+      );
     }
     
     // Price filter
@@ -130,7 +99,7 @@ const Products = () => {
     }
     
     return result;
-  }, [dbProducts, searchQuery, selectedCategory, selectedOccasions, priceRange, sortBy]);
+  }, [dbProducts, searchQuery, selectedCategory, selectedOccasions, priceRange, sortBy, categories]);
 
   const getCategoryTitle = () => {
     if (searchQuery) return `Search: "${searchQuery}"`;
@@ -197,18 +166,20 @@ const Products = () => {
               >
                 {cat.name}
               </Button>
-              <div className="ml-3 space-y-1">
-                {cat.subcategories.map((sub) => (
-                  <Button
-                    key={sub.id}
-                    variant="ghost"
-                    onClick={() => setSelectedCategory(sub.id)}
-                    className={`w-full justify-start text-xs px-2 ${selectedCategory === sub.id ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:text-foreground'}`}
-                  >
-                    {sub.name}
-                  </Button>
-                ))}
-              </div>
+              {cat.subcategories.length > 0 && (
+                <div className="ml-3 space-y-1">
+                  {cat.subcategories.map((sub) => (
+                    <Button
+                      key={sub.id}
+                      variant="ghost"
+                      onClick={() => setSelectedCategory(sub.id)}
+                      className={`w-full justify-start text-xs px-2 ${selectedCategory === sub.id ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                      {sub.name}
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>

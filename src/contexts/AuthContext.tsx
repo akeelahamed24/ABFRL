@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { User } from '@/types';
+import { authAPI } from '@/services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -7,6 +8,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   signup: (email: string, password: string, firstName: string, lastName: string) => Promise<boolean>;
+  updateProfile: (updates: Partial<User>) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -14,7 +16,25 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'auth_user';
 const TOKEN_KEY = 'auth_token';
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const mapApiUserToUser = (apiUser: any): User => ({
+  id: apiUser.id,
+  email: apiUser.email,
+  password_hash: '',
+  first_name: apiUser.first_name,
+  last_name: apiUser.last_name,
+  phone: apiUser.phone || null,
+  address: apiUser.address || null,
+  city: apiUser.city || null,
+  state: apiUser.state || null,
+  country: apiUser.country || null,
+  postal_code: apiUser.postal_code || null,
+  loyalty_score: apiUser.loyalty_score || 0,
+  is_active: apiUser.is_active ?? true,
+  is_admin: apiUser.is_admin ?? false,
+  created_at: apiUser.created_at || new Date().toISOString(),
+  updated_at: apiUser.updated_at || new Date().toISOString(),
+});
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -40,44 +60,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
-
-      if (!response.ok) {
-        console.error('Login failed:', response.statusText);
-        return false;
-      }
-
-      const data = await response.json();
+      const data = await authAPI.login(email, password);
       
       if (data.success && data.user) {
-        // Convert API response to User type
-        const userData: User = {
-          id: parseInt(data.user.id) || Date.now(),
-          email: data.user.email,
-          password_hash: '',
-          first_name: data.user.first_name,
-          last_name: data.user.last_name,
-          phone: data.user.phone || null,
-          address: data.user.address || null,
-          city: data.user.city || null,
-          state: data.user.state || null,
-          country: data.user.country || null,
-          postal_code: data.user.postal_code || null,
-          loyalty_score: data.user.loyalty_score || 0,
-          is_active: data.user.is_active || true,
-          is_admin: data.user.is_admin || false,
-          created_at: data.user.created_at || new Date().toISOString(),
-          updated_at: data.user.updated_at || new Date().toISOString(),
-        };
+        const userData = mapApiUserToUser(data.user);
 
         setUser(userData);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
@@ -102,46 +88,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          first_name: firstName,
-          last_name: lastName,
-        }),
-      });
-
-      if (!response.ok) {
-        console.error('Signup failed:', response.statusText);
-        return false;
-      }
-
-      const data = await response.json();
+      const data = await authAPI.register(email, password, firstName, lastName);
 
       if (data.success && data.user) {
-        // Convert API response to User type
-        const userData: User = {
-          id: parseInt(data.user.id) || Date.now(),
-          email: data.user.email,
-          password_hash: '',
-          first_name: data.user.first_name,
-          last_name: data.user.last_name,
-          phone: data.user.phone || null,
-          address: data.user.address || null,
-          city: data.user.city || null,
-          state: data.user.state || null,
-          country: data.user.country || null,
-          postal_code: data.user.postal_code || null,
-          loyalty_score: data.user.loyalty_score || 0,
-          is_active: data.user.is_active || true,
-          is_admin: data.user.is_admin || false,
-          created_at: data.user.created_at || new Date().toISOString(),
-          updated_at: data.user.updated_at || new Date().toISOString(),
-        };
+        const userData = mapApiUserToUser(data.user);
 
         setUser(userData);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
@@ -158,6 +108,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const updateProfile = useCallback(async (updates: Partial<User>): Promise<boolean> => {
+    if (!user?.id) {
+      return false;
+    }
+
+    setIsLoading(true);
+    try {
+      const updatedUser = await authAPI.updateProfile(user.id, updates);
+      if (!updatedUser) {
+        return false;
+      }
+
+      const nextUser = mapApiUserToUser(updatedUser);
+      setUser(nextUser);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+      return true;
+    } catch (error) {
+      console.error('Update profile error:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
@@ -172,6 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login,
         signup,
+        updateProfile,
         logout,
       }}
     >

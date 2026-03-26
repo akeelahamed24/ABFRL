@@ -42,7 +42,7 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
           'absolute top-3 right-3 h-9 w-9 rounded-full bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity',
           isWishlisted && 'opacity-100'
         )}
-        onClick={() => toggleItem(product)}
+        onClick={() => void toggleItem(product)}
       >
         <Heart
           className={cn(

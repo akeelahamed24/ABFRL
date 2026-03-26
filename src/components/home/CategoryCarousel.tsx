@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { useCatalogMeta } from '@/hooks/useApi';
 import {
   Carousel,
   CarouselContent,
@@ -8,18 +9,13 @@ import {
   CarouselPrevious,
 } from '@/components/ui/carousel';
 
-const categoryItems = [
-  { id: 'women-dresses', name: 'Dresses', image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600', count: 48 },
-  { id: 'women-tops', name: 'Tops', image: 'https://images.unsplash.com/photo-1485968579580-b6d095142e6e?w=600', count: 36 },
-  { id: 'men-suits', name: 'Suits', image: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=600', count: 24 },
-  { id: 'men-shirts', name: 'Shirts', image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600', count: 52 },
-  { id: 'women-outerwear', name: 'Outerwear', image: 'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=600', count: 18 },
-  { id: 'men-outerwear', name: "Men's Jackets", image: 'https://images.unsplash.com/photo-1544923246-77307dd628b8?w=600', count: 22 },
-  { id: 'kids-girls', name: 'Girls', image: 'https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?w=600', count: 30 },
-  { id: 'kids-boys', name: 'Boys', image: 'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?w=600', count: 28 },
-];
-
 export const CategoryCarousel = () => {
+  const { categories } = useCatalogMeta();
+  const categoryItems = categories
+    .slice()
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+
   return (
     <section className="py-12 md:py-16 lg:py-20 bg-secondary/30">
       <div className="container">
@@ -47,7 +43,7 @@ export const CategoryCarousel = () => {
                 >
                   <div className="relative aspect-square overflow-hidden rounded-full mb-4 border-2 border-transparent group-hover:border-brand-orange transition-colors">
                     <img
-                      src={category.image}
+                      src={category.image_url || '/placeholder.svg'}
                       alt={category.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                     />

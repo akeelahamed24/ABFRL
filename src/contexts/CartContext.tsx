@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Product } from '@/types';
-import { cartAPI } from '@/services/api';
+import { cartAPI, productAPI } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CartItemWithProduct {
   id: number;
@@ -29,23 +30,11 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 const STORAGE_KEY = 'cart_items';
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [items, setItems] = useState<CartItemWithProduct[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  // Get user ID from localStorage (set by AuthContext)
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        setUserId(user._id || user.id);
-      } catch (error) {
-        console.error('Failed to parse user:', error);
-      }
-    }
-  }, []);
+  const userId = user?.id ?? null;
 
   // Load cart from localStorage on mount (for offline mode)
   useEffect(() => {
@@ -64,6 +53,43 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items]);
+
+  useEffect(() => {
+    const syncCart = async () => {
+      if (!userId) {
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const cartItems = await cartAPI.getCart(userId);
+        const hydratedItems = await Promise.all(
+          cartItems.map(async (item: any, index: number) => {
+            const product = await productAPI.getProduct(item.product_id);
+            if (!product) {
+              return null;
+            }
+
+            return {
+              id: Number(`${item.product_id}${index}`),
+              product,
+              quantity: item.quantity,
+              size: item.size || 'Standard',
+              color: item.color || 'Default',
+            };
+          })
+        );
+
+        setItems(hydratedItems.filter(Boolean) as CartItemWithProduct[]);
+      } catch (error) {
+        console.error('Failed to sync cart:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    syncCart();
+  }, [userId]);
 
   const addItem = useCallback(async (product: Product, quantity: number, size: string, color: string) => {
     try {
@@ -144,7 +170,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Call API if user is logged in
       if (userId && itemToUpdate) {
-        await cartAPI.addToCart(userId, itemToUpdate.product.id?.toString() || '', quantity - itemToUpdate.quantity);
+        await cartAPI.removeFromCart(userId, itemToUpdate.product.id?.toString() || '');
+        await cartAPI.addToCart(userId, itemToUpdate.product.id?.toString() || '', quantity);
       }
     } catch (error) {
       console.error('Failed to update cart quantity:', error);
