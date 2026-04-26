@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
-import { User, Mail, Phone, MapPin, ArrowLeft, Save, Edit2 } from 'lucide-react';
+import { User, Mail, Phone, MapPin, ArrowLeft, Save, Edit2, Award, Zap } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,9 +11,29 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
+interface LoyaltyInfo {
+  loyalty_score: number;
+  tier: string;
+  tier_discount: number;
+  points_value: number;
+  next_tier?: string;
+  points_to_next_tier: number;
+}
+
+const getTierBadgeColor = (tier: string) => {
+  switch(tier) {
+    case 'Platinum': return 'from-purple-600 to-purple-400';
+    case 'Gold': return 'from-yellow-600 to-yellow-400';
+    case 'Silver': return 'from-gray-400 to-gray-300';
+    default: return 'from-orange-600 to-orange-400';
+  }
+};
+
 const Profile = () => {
   const { user, isAuthenticated, updateProfile, isLoading } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [loyaltyInfo, setLoyaltyInfo] = useState<LoyaltyInfo | null>(null);
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false);
   const [formData, setFormData] = useState({
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
@@ -25,6 +45,28 @@ const Profile = () => {
     country: user?.country || '',
     postal_code: user?.postal_code || '',
   });
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchLoyaltyInfo();
+    }
+  }, [user?.id]);
+
+  const fetchLoyaltyInfo = async () => {
+    if (!user?.id) return;
+    setLoyaltyLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/user/${user.id}/loyalty`);
+      if (response.ok) {
+        const data = await response.json();
+        setLoyaltyInfo(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch loyalty info:', error);
+    } finally {
+      setLoyaltyLoading(false);
+    }
+  };
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
@@ -138,6 +180,66 @@ const Profile = () => {
               <Input name="country" value={formData.country} onChange={handleChange} disabled={!isEditing} className={cn(!isEditing && "bg-muted")} />
             </div>
           </div>
+        </div>
+
+        {/* Loyalty Section */}
+        <div className="mt-8">
+          <h3 className="font-serif text-2xl font-bold mb-4">✨ Loyalty & Rewards</h3>
+          {loyaltyLoading ? (
+            <div className="bg-card rounded-lg border border-border p-6 text-center text-muted-foreground">
+              Loading loyalty information...
+            </div>
+          ) : loyaltyInfo ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Tier Badge */}
+              <div className={`bg-gradient-to-r ${getTierBadgeColor(loyaltyInfo.tier)} rounded-lg p-6 text-white shadow-lg`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Award className="h-5 w-5" />
+                  <span className="text-sm font-semibold">CURRENT TIER</span>
+                </div>
+                <h4 className="font-serif text-3xl font-bold mb-1">{loyaltyInfo.tier}</h4>
+                <p className="text-sm opacity-90">{loyaltyInfo.tier_discount}% discount on all purchases</p>
+              </div>
+
+              {/* Points Info */}
+              <div className="bg-card rounded-lg border border-border p-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="h-5 w-5 text-yellow-500" />
+                  <span className="text-sm font-semibold text-muted-foreground">LOYALTY POINTS</span>
+                </div>
+                <h4 className="font-serif text-3xl font-bold mb-1">{loyaltyInfo.loyalty_score}</h4>
+                <p className="text-sm text-muted-foreground">Worth ${loyaltyInfo.points_value}</p>
+                <p className="text-xs text-muted-foreground mt-2">1 point = $0.01</p>
+              </div>
+
+              {/* Next Tier */}
+              <div className="bg-card rounded-lg border border-border p-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <Award className="h-5 w-5 text-blue-500" />
+                  <span className="text-sm font-semibold text-muted-foreground">NEXT TIER</span>
+                </div>
+                {loyaltyInfo.next_tier ? (
+                  <>
+                    <h4 className="font-serif text-xl font-bold mb-1">{loyaltyInfo.next_tier}</h4>
+                    <p className="text-sm text-muted-foreground">{loyaltyInfo.points_to_next_tier} points away</p>
+                    <div className="mt-3 bg-gray-200 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-brand-red to-gold h-full"
+                        style={{
+                          width: `${Math.min(100, Math.max(0, 100 - (loyaltyInfo.points_to_next_tier / 100) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h4 className="font-serif text-xl font-bold mb-1">Max Tier!</h4>
+                    <p className="text-sm text-muted-foreground">You're at the highest tier</p>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </Layout>
