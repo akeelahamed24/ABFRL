@@ -7,9 +7,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { useToast } from '../hooks/use-toast';
-import { CheckCircle, ArrowLeft, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { CheckCircle, ArrowLeft, Loader2, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { cartAPI } from '../services/api';
+
+interface LoyaltyInfo {
+  loyalty_score: number;
+  tier: string;
+  tier_discount: number;
+  points_value: number;
+}
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +25,11 @@ const Checkout: React.FC = () => {
   const { toast } = useToast();
   const [isComplete, setIsComplete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [loyaltyInfo, setLoyaltyInfo] = useState<LoyaltyInfo | null>(null);
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false);
+  const [pointsToRedeem, setPointsToRedeem] = useState(0);
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     address: user?.address || '',
     city: user?.city || '',
@@ -27,6 +39,84 @@ const Checkout: React.FC = () => {
     cvv: '',
     expiryDate: ''
   });
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchLoyaltyInfo();
+    }
+  }, [user?.id]);
+
+  const fetchLoyaltyInfo = async () => {
+    if (!user?.id) return;
+    setLoyaltyLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/user/${user.id}/loyalty`);
+      if (response.ok) {
+        const data = await response.json();
+        setLoyaltyInfo(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch loyalty info:', error);
+    } finally {
+      setLoyaltyLoading(false);
+    }
+  };
+
+  const applyLoyaltyPoints = async () => {
+    if (!orderNumber || pointsToRedeem <= 0) {
+      toast({
+        title: "Invalid points",
+        description: "Please enter a valid number of points.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!loyaltyInfo || pointsToRedeem > loyaltyInfo.loyalty_score) {
+      toast({
+        title: "Insufficient points",
+        description: `You only have ${loyaltyInfo?.loyalty_score} points available.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/orders/${orderNumber}/apply-loyalty-points`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ points_to_redeem: pointsToRedeem })
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const discount = pointsToRedeem * 0.01;
+        setLoyaltyDiscount(discount);
+        setPointsToRedeem(0);
+        toast({
+          title: "Points applied!",
+          description: `${pointsToRedeem} points applied (${discount.toFixed(2)} discount)`
+        });
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Failed to apply points",
+          description: error.detail || "Could not apply loyalty points.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Failed to apply points:', error);
+      toast({
+        title: "Error",
+        description: "Failed to apply loyalty points.",
+        variant: "destructive"
+      });
+    }
+  };
 
   if (!isAuthenticated) {
     navigate('/auth');
@@ -84,6 +174,7 @@ const Checkout: React.FC = () => {
         subtotal
       );
 
+      setOrderNumber(result.order_number);
       clearCart();
       setIsComplete(true);
       
@@ -215,6 +306,38 @@ const Checkout: React.FC = () => {
               </div>
             </div>
 
+            {/* Loyalty Points Section */}
+            {loyaltyInfo && loyaltyInfo.loyalty_score > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-blue-600" />
+                  <h3 className="font-semibold text-blue-900">Apply Loyalty Points</h3>
+                </div>
+                <p className="text-sm text-blue-800">You have <span className="font-bold">{loyaltyInfo.loyalty_score}</span> points (${loyaltyInfo.points_value})</p>
+                <div className="flex gap-2">
+                  <Input 
+                    type="number" 
+                    placeholder="Enter points to redeem" 
+                    value={pointsToRedeem || ''}
+                    onChange={(e) => setPointsToRedeem(Math.max(0, parseInt(e.target.value) || 0))}
+                    min="0"
+                    max={loyaltyInfo.loyalty_score}
+                    disabled={submitting}
+                  />
+                  <Button 
+                    onClick={applyLoyaltyPoints}
+                    disabled={submitting || pointsToRedeem <= 0}
+                    variant="outline"
+                  >
+                    Apply
+                  </Button>
+                </div>
+                {pointsToRedeem > 0 && (
+                  <p className="text-sm text-blue-700">Will save you ${(pointsToRedeem * 0.01).toFixed(2)}</p>
+                )}
+              </div>
+            )}
+
             {/* Order Total */}
             <div className="border-t pt-4 space-y-2">
               <div className="flex justify-between">
@@ -225,9 +348,15 @@ const Checkout: React.FC = () => {
                 <span>Shipping</span>
                 <span>Free</span>
               </div>
+              {loyaltyDiscount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Loyalty Discount</span>
+                  <span>-{formatCurrency(loyaltyDiscount)}</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold text-lg">
                 <span>Total</span>
-                <span>{formatCurrency(subtotal)}</span>
+                <span>{formatCurrency(Math.max(0, subtotal - loyaltyDiscount))}</span>
               </div>
             </div>
 
